@@ -24,7 +24,7 @@ with st.sidebar:
     st.header("Pipeline")
     st.page_link("app.py", label="Home", icon="🏠")
     st.page_link("pages/1_crawler.py", label="1. Crawl", icon="🕷️")
-    st.page_link("pages/2_clusters.py", label="2. Cluster", icon="🧩")
+    st.page_link("pages/2_content_architecture.py", label="2. Architecture", icon="🏗️")
     st.page_link("pages/3_generate.py", label="3. Generate", icon="✍️")
     st.page_link("pages/4_evaluate.py", label="4. Evaluate", icon="📊")
     st.divider()

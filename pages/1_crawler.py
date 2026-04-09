@@ -468,7 +468,7 @@ def main():
     with nav1:
         st.page_link("app.py", label="Home", icon="🏠")
     with nav2:
-        st.page_link("pages/2_clusters.py", label="Clusters", icon="🧩")
+        st.page_link("pages/2_content_architecture.py", label="Architecture", icon="🏗️")
     with nav3:
         st.page_link("pages/3_generate.py", label="Generate", icon="✍️")
 
@@ -479,7 +479,7 @@ def main():
         st.header("Pipeline")
         st.page_link("app.py", label="Home", icon="🏠")
         st.page_link("pages/1_crawler.py", label="1. Crawl", icon="🕷️")
-        st.page_link("pages/2_clusters.py", label="2. Cluster", icon="🧩")
+        st.page_link("pages/2_content_architecture.py", label="2. Architecture", icon="🏗️")
         st.page_link("pages/3_generate.py", label="3. Generate", icon="✍️")
         st.page_link("pages/4_evaluate.py", label="4. Evaluate", icon="📊")
         st.divider()
@@ -495,11 +495,18 @@ def main():
         st.divider()
 
         st.subheader("Run crawl")
-        target_url = st.text_input(
+        raw_url = st.text_input(
             "Target URL",
             value="https://www.acko.com/car-insurance/",
             help="Crawl starts here; internal links under this section are enqueued.",
         )
+        # Strip UTM / tracking query params — keep only the clean path
+        _parsed = urlparse(raw_url)
+        target_url = f"{_parsed.scheme}://{_parsed.netloc}{_parsed.path}"
+        if not target_url.endswith("/"):
+            target_url += "/"
+        if raw_url != target_url:
+            st.caption(f"Cleaned URL: `{target_url}`")
         delay = st.slider(
             "Delay between requests (seconds)",
             min_value=1,
@@ -665,7 +672,7 @@ def main():
                     if st.button("🧩 Run Clustering", type="primary", use_container_width=True, key="quick_cluster_btn"):
                         # Import clustering logic
                         import importlib.util
-                        _spec = importlib.util.spec_from_file_location("clusters_mod", str(Path(__file__).resolve().parent / "2_clusters.py"))
+                        _spec = importlib.util.spec_from_file_location("clusters_mod", str(Path(__file__).resolve().parent / "6_clusters_legacy.py"))
                         _clusters_mod = importlib.util.module_from_spec(_spec)
 
                         # We need to use the clustering function directly

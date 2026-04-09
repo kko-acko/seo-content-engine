@@ -226,7 +226,7 @@ def main():
         st.markdown("**acko** Content Studio")
         st.page_link("app.py", label="Home", icon="🏠")
         st.page_link("pages/1_crawler.py", label="Crawl", icon="🕷️")
-        st.page_link("pages/2_clusters.py", label="Cluster", icon="🧩")
+        st.page_link("pages/2_content_architecture.py", label="Architecture", icon="🏗️")
         st.page_link("pages/3_generate.py", label="Generate", icon="✍️")
         st.page_link("pages/4_evaluate.py", label="Evaluate", icon="📊")
         st.divider()
