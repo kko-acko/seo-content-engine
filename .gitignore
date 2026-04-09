@@ -1,0 +1,27 @@
+# Virtual environment
+.venv/
+
+# Databases (contain crawled data - large)
+*.db
+
+# Generated mirror pages
+mirror_pages/
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+
+# Secrets
+.env
+
+# Generated articles (output)
+generated_articles/
+
+# Claude Code local config
+.claude/
+
+# Streamlit local config
+.streamlit/

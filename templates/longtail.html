@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ page_title | default('Acko Insurance') }}</title>
+  <meta name="description" content="{{ meta_description | default('') }}">
+  {% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="{{ page_title | default('Acko Insurance') }}">
+  <meta property="og:description" content="{{ meta_description | default('') }}">
+  {% if canonical_url %}<meta property="og:url" content="{{ canonical_url }}">{% endif %}
+  <meta property="og:site_name" content="Acko">
+  <meta property="og:image" content="https://www.acko.com/assets/img/acko-og.png">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@AckoInsurance">
+  <meta name="twitter:title" content="{{ page_title | default('Acko Insurance') }}">
+  <meta name="twitter:description" content="{{ meta_description | default('') }}">
+  <meta name="twitter:image" content="https://www.acko.com/assets/img/acko-og.png">
+
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Article",
+        "headline": {{ (h1 or page_title or '') | tojson }},
+        "description": {{ (meta_description or '') | tojson }},
+        "url": {{ (canonical_url or '') | tojson }},
+        "publisher": {
+          "@type": "Organization",
+          "name": "Acko",
+          "url": "https://www.acko.com",
+          "logo": { "@type": "ImageObject", "url": "https://www.acko.com/assets/img/acko-logo.png" }
+        }
+      }{% if breadcrumb %},
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {% for crumb in breadcrumb %}
+          { "@type": "ListItem", "position": {{ loop.index }}, "name": {{ crumb.text | tojson }}, "item": {{ (crumb.url or '#') | tojson }} }{% if not loop.last %},{% endif %}
+          {% endfor %}
+        ]
+      }{% endif %}{% if faqs %},
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {% for faq in faqs %}
+          {
+            "@type": "Question",
+            "name": {{ faq.question | tojson }},
+            "acceptedAnswer": { "@type": "Answer", "text": {{ faq.answer | tojson }} }
+          }{% if not loop.last %},{% endif %}
+          {% endfor %}
+        ]
+      }{% endif %}
+    ]
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* ========== RESET & BASE ========== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #1A1A2E;
+      background: #FFFFFF;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    img { max-width: 100%; display: block; }
+    a { color: inherit; text-decoration: none; }
+    ul, ol { list-style: none; }
+    button, input { font-family: inherit; border: none; outline: none; }
+
+    /* ========== UTILITIES ========== */
+    .container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+    .narrow { max-width: 760px; margin: 0 auto; }
+    .section-title {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      color: #1A1A2E;
+      letter-spacing: -0.02em;
+    }
+    .section-subtitle {
+      font-size: 1.05rem;
+      color: #6B7280;
+      margin-bottom: 2rem;
+      max-width: 600px;
+    }
+    .section-pad { padding: 56px 0; }
+    .section-alt { background: #F9FAFB; }
+    .purple-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #522ED3;
+      color: #fff;
+      font-weight: 600;
+      font-size: 1rem;
+      padding: 14px 32px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      text-decoration: none;
+    }
+    .purple-btn:hover {
+      background: #4020B8;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(82, 46, 211, 0.35);
+    }
+
+    /* ========== STICKY NAV ========== */
+    .sticky-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255,255,255,0.95);
+      border-bottom: 1px solid #E5E7EB;
+      padding: 12px 0;
+      backdrop-filter: blur(12px);
+    }
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-logo {
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: #522ED3;
+      letter-spacing: -0.03em;
+    }
+    .nav-logo span { color: #1A1A2E; }
+    .nav-cta {
+      background: #522ED3;
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 10px 24px;
+      border-radius: 10px;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+    .nav-cta:hover { background: #4020B8; transform: translateY(-1px); }
+
+    /* ========== BREADCRUMB ========== */
+    .breadcrumb-bar {
+      background: #F9FAFB;
+      padding: 14px 0;
+      border-bottom: 1px solid #E5E7EB;
+    }
+    .breadcrumb-bar nav {
+      font-size: 0.85rem;
+      color: #9CA3AF;
+    }
+    .breadcrumb-bar a {
+      color: #6B7280;
+      transition: color 0.2s;
+    }
+    .breadcrumb-bar a:hover { color: #522ED3; }
+    .breadcrumb-bar .sep { margin: 0 6px; color: #D1D5DB; }
+    .breadcrumb-bar .current { color: #1A1A2E; font-weight: 500; }
+
+    /* ========== HERO (longtail) ========== */
+    .lt-hero {
+      padding: 40px 0 32px;
+      border-bottom: 1px solid #F3F4F6;
+    }
+    .lt-hero .product-label {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: #522ED3;
+      margin-bottom: 14px;
+      background: #F3F0FF;
+      padding: 5px 14px;
+      border-radius: 6px;
+    }
+    .lt-hero h1 {
+      font-size: 2.2rem;
+      font-weight: 900;
+      line-height: 1.15;
+      margin-bottom: 14px;
+      max-width: 700px;
+      letter-spacing: -0.03em;
+      color: #1A1A2E;
+    }
+    .lt-hero .intro {
+      font-size: 1.05rem;
+      color: #4B5563;
+      line-height: 1.7;
+      max-width: 640px;
+      margin-bottom: 20px;
+    }
+    .lt-hero .author-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.85rem;
+      color: #6B7280;
+    }
+    .lt-hero .author-avatar {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #522ED3, #7C3AED);
+      color: #fff;
+      font-size: 0.72rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .lt-hero .author-line strong { color: #1A1A2E; }
+
+    /* ========== QUICK ANSWER BOX ========== */
+    .quick-answer {
+      background: linear-gradient(135deg, #F8F7FF 0%, #EDE9FE 100%);
+      border: 1px solid #D1C4E9;
+      border-radius: 16px;
+      padding: 28px 32px;
+      margin: 32px 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .quick-answer::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 5px; height: 100%;
+      background: linear-gradient(180deg, #522ED3, #7C3AED);
+      border-radius: 16px 0 0 16px;
+    }
+    .quick-answer .qa-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #522ED3;
+      margin-bottom: 10px;
+    }
+    .quick-answer .qa-label .icon {
+      width: 20px; height: 20px;
+      background: #522ED3;
+      color: #fff;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.65rem;
+      font-weight: 900;
+    }
+    .quick-answer p {
+      font-size: 1.05rem;
+      color: #1A1A2E;
+      line-height: 1.75;
+      font-weight: 500;
+    }
+
+    /* ========== ARTICLE BODY ========== */
+    .lt-body {
+      padding: 40px 0;
+    }
+    .lt-body h2 {
+      font-size: 1.5rem;
+      font-weight: 800;
+      margin: 40px 0 14px;
+      color: #1A1A2E;
+      letter-spacing: -0.01em;
+      scroll-margin-top: 80px;
+    }
+    .lt-body h2:first-child { margin-top: 0; }
+    .lt-body h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin: 24px 0 10px;
+      color: #1A1A2E;
+    }
+    .lt-body p {
+      font-size: 1rem;
+      color: #4B5563;
+      line-height: 1.85;
+      margin-bottom: 16px;
+    }
+    .lt-body a {
+      color: #522ED3;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      text-decoration-thickness: 1px;
+    }
+    .lt-body a:hover { color: #4020B8; text-decoration-thickness: 2px; }
+    .lt-body strong { color: #1A1A2E; }
+
+    /* Numbered lists (for tips/steps) */
+    .lt-body ol {
+      counter-reset: lt-counter;
+      margin-bottom: 24px;
+      padding-left: 0;
+    }
+    .lt-body ol li {
+      counter-increment: lt-counter;
+      font-size: 0.95rem;
+      color: #4B5563;
+      line-height: 1.75;
+      padding: 14px 0 14px 44px;
+      position: relative;
+      border-bottom: 1px solid #F3F4F6;
+    }
+    .lt-body ol li:last-child { border-bottom: none; }
+    .lt-body ol li::before {
+      content: counter(lt-counter);
+      position: absolute;
+      left: 0; top: 12px;
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      background: #522ED3;
+      color: #fff;
+      font-size: 0.82rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .lt-body ol li strong { color: #1A1A2E; }
+
+    /* Bullet lists */
+    .lt-body ul {
+      margin-bottom: 20px;
+      padding-left: 0;
+    }
+    .lt-body ul li {
+      font-size: 0.95rem;
+      color: #4B5563;
+      line-height: 1.7;
+      padding-left: 22px;
+      position: relative;
+      margin-bottom: 8px;
+    }
+    .lt-body ul li::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 10px;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #522ED3;
+    }
+
+    /* ========== KEY STAT CALLOUT ========== */
+    .stat-callout {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      background: #F0FDF4;
+      border: 1px solid #BBF7D0;
+      border-radius: 14px;
+      padding: 20px 24px;
+      margin: 24px 0;
+    }
+    .stat-callout .stat-number {
+      font-size: 1.8rem;
+      font-weight: 900;
+      color: #10B981;
+      letter-spacing: -0.02em;
+      flex-shrink: 0;
+    }
+    .stat-callout .stat-text {
+      font-size: 0.92rem;
+      color: #166534;
+      line-height: 1.55;
+    }
+    .stat-callout .stat-text strong { color: #064E3B; }
+
+    /* ========== KEY TAKEAWAY ========== */
+    .key-takeaway {
+      border-left: 4px solid #522ED3;
+      background: #F8F7FF;
+      border-radius: 0 12px 12px 0;
+      padding: 22px 24px;
+      margin: 24px 0;
+    }
+    .key-takeaway .takeaway-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #522ED3;
+      margin-bottom: 6px;
+    }
+    .key-takeaway p {
+      font-size: 0.92rem;
+      color: #374151;
+      line-height: 1.7;
+      margin-bottom: 0;
+    }
+
+    /* ========== COMPARISON TABLE ========== */
+    .styled-table-wrap {
+      overflow-x: auto;
+      border-radius: 14px;
+      border: 1px solid #E5E7EB;
+      margin: 24px 0;
+    }
+    .styled-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 420px;
+    }
+    .styled-table thead th {
+      background: #1A1A2E;
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 14px 20px;
+      text-align: left;
+    }
+    .styled-table tbody td {
+      padding: 13px 20px;
+      font-size: 0.92rem;
+      border-bottom: 1px solid #F3F4F6;
+      color: #4B5563;
+    }
+    .styled-table tbody tr:last-child td { border-bottom: none; }
+    .styled-table tbody tr:hover { background: #F8F7FF; }
+    .styled-table tbody td:first-child { font-weight: 600; color: #1A1A2E; }
+
+    /* ========== RELATED TOPICS (pills) ========== */
+    .related-topics {
+      padding: 40px 0;
+      border-top: 1px solid #E5E7EB;
+    }
+    .related-topics h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #1A1A2E;
+    }
+    .topic-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .topic-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 20px;
+      background: #fff;
+      border: 1px solid #E5E7EB;
+      border-radius: 100px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #4B5563;
+      transition: all 0.2s;
+    }
+    .topic-pill:hover {
+      border-color: #522ED3;
+      color: #522ED3;
+      background: #F8F7FF;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(82,46,211,0.1);
+    }
+    .topic-pill::before {
+      content: '#';
+      color: #522ED3;
+      font-weight: 700;
+    }
+
+    /* ========== FAQ ACCORDION ========== */
+    .faq-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .faq-item {
+      border: 1px solid #E5E7EB;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fff;
+      transition: all 0.25s;
+    }
+    .faq-item:hover { border-color: #D1C4E9; box-shadow: 0 2px 12px rgba(82,46,211,0.06); }
+    .faq-question {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 24px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1A1A2E;
+      background: none;
+      border: none;
+      width: 100%;
+      text-align: left;
+      transition: background 0.2s;
+    }
+    .faq-question:hover { background: #FAFAFA; }
+    .faq-toggle {
+      font-size: 1.4rem;
+      color: #522ED3;
+      font-weight: 300;
+      transition: transform 0.3s;
+      flex-shrink: 0;
+      margin-left: 16px;
+      width: 28px; height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: #F3F0FF;
+    }
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s ease, padding 0.35s ease;
+      padding: 0 24px;
+    }
+    .faq-answer.open {
+      max-height: 600px;
+      padding: 0 24px 20px;
+    }
+    .faq-answer p {
+      font-size: 0.95rem;
+      color: #6B7280;
+      line-height: 1.75;
+    }
+
+    /* ========== CTA BANNER ========== */
+    .cta-banner {
+      background: linear-gradient(135deg, #522ED3 0%, #7C3AED 50%, #A78BFA 100%);
+      border-radius: 20px;
+      padding: 48px 40px;
+      text-align: center;
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-banner::before {
+      content: '';
+      position: absolute;
+      top: -50%; right: -20%;
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+    }
+    .cta-banner h2 {
+      font-size: 1.8rem;
+      font-weight: 800;
+      margin-bottom: 10px;
+      position: relative;
+      z-index: 1;
+      letter-spacing: -0.02em;
+    }
+    .cta-banner p {
+      font-size: 1rem;
+      color: rgba(255,255,255,0.85);
+      margin-bottom: 28px;
+      max-width: 460px;
+      margin-left: auto;
+      margin-right: auto;
+      position: relative;
+      z-index: 1;
+    }
+    .cta-banner .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #fff;
+      color: #522ED3;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 14px 36px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      border: none;
+      position: relative;
+      z-index: 1;
+    }
+    .cta-banner .cta-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.2);
+    }
+
+    /* ========== SLIM FOOTER ========== */
+    .slim-footer {
+      background: #1A1A2E;
+      color: rgba(255,255,255,0.7);
+      padding: 32px 0;
+    }
+    .slim-footer-inner {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+    }
+    .slim-footer .footer-logo {
+      font-size: 1.2rem;
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: -0.03em;
+    }
+    .slim-footer .footer-logo span { color: #A78BFA; }
+    .slim-footer-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .slim-footer-links a {
+      font-size: 0.82rem;
+      color: rgba(255,255,255,0.45);
+      padding: 4px 12px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+    .slim-footer-links a:hover { color: #fff; background: rgba(255,255,255,0.1); }
+    .slim-footer .footer-copy {
+      width: 100%;
+      font-size: 0.75rem;
+      color: rgba(255,255,255,0.25);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding-top: 16px;
+      margin-top: 8px;
+    }
+
+    /* ========== RESPONSIVE ========== */
+    @media (max-width: 768px) {
+      .lt-hero h1 { font-size: 1.7rem; }
+      .section-title { font-size: 1.4rem; }
+      .section-pad { padding: 40px 0; }
+      .quick-answer { padding: 22px 24px; }
+      .quick-answer p { font-size: 0.95rem; }
+      .lt-body h2 { font-size: 1.3rem; margin-top: 32px; }
+      .stat-callout { flex-direction: column; text-align: center; }
+      .stat-callout .stat-number { font-size: 1.5rem; }
+      .cta-banner { padding: 32px 24px; border-radius: 16px; }
+      .cta-banner h2 { font-size: 1.4rem; }
+      .topic-pills { gap: 8px; }
+      .topic-pill { font-size: 0.8rem; padding: 8px 14px; }
+      .slim-footer-inner { flex-direction: column; text-align: center; }
+      .styled-table thead th,
+      .styled-table tbody td { padding: 10px 14px; font-size: 0.85rem; }
+    }
+
+    /* ========== READING PROGRESS BAR ========== */
+    .progress-bar {
+      position: fixed; top: 0; left: 0; width: 0%; height: 3px;
+      background: linear-gradient(90deg, #522ED3, #7C3AED);
+      z-index: 200; transition: width 0.1s linear;
+    }
+
+    /* ========== MOBILE STICKY CTA ========== */
+    .mobile-sticky-cta {
+      display: none; position: fixed; bottom: 0; left: 0; right: 0; z-index: 150;
+      background: #fff; border-top: 1px solid #E5E7EB; padding: 12px 20px;
+      box-shadow: 0 -4px 24px rgba(0,0,0,0.08);
+    }
+    .mobile-sticky-cta a {
+      display: block; background: #522ED3; color: #fff; font-weight: 700;
+      font-size: 1rem; text-align: center; padding: 14px; border-radius: 12px; text-decoration: none;
+    }
+    @media (max-width: 768px) {
+      .mobile-sticky-cta { display: block; }
+      body { padding-bottom: 80px; }
+    }
+
+    /* ========== ANIMATIONS ========== */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-in {
+      animation: fadeInUp 0.5s ease forwards;
+      opacity: 0;
+    }
+  </style>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .chart-card { background: white; border: 1px solid #E5E7EB; border-radius: 12px; padding: 1.5rem; margin: 2rem 0; }
+    .chart-title { font-size: 1rem; font-weight: 600; color: #1A1A2E; margin-bottom: 1rem; }
+    .chart-canvas-wrap { position: relative; max-height: 320px; }
+    .chart-source { margin-top: .5rem; font-size: .75rem; color: #6B7280; }
+  </style>
+</head>
+<body>
+
+  <div class="progress-bar" id="progress-bar"></div>
+  <div class="mobile-sticky-cta">
+    <a href="https://www.acko.com/car-insurance/">Get an instant quote &rarr;</a>
+  </div>
+
+  <!-- ========== STICKY NAV ========== -->
+  <nav class="sticky-nav">
+    <div class="container nav-inner">
+      <div class="nav-logo">ACKO<span>.</span></div>
+      <a href="#cta-bottom" class="nav-cta">Get a FREE quote &rarr;</a>
+    </div>
+  </nav>
+
+  <!-- ========== BREADCRUMB ========== -->
+  {% if breadcrumb %}
+  <div class="breadcrumb-bar">
+    <div class="container">
+      <nav aria-label="Breadcrumb">
+        {% for crumb in breadcrumb %}
+          {% if not loop.last %}
+            <a href="{{ crumb.url | default('#') }}">{{ crumb.text }}</a><span class="sep">/</span>
+          {% else %}
+            <span class="current">{{ crumb.text }}</span>
+          {% endif %}
+        {% endfor %}
+      </nav>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ========== HERO ========== -->
+  <section class="lt-hero">
+    <div class="container">
+      <div class="narrow">
+        {% if product_label %}
+        <div class="product-label">{{ product_label }}</div>
+        {% endif %}
+
+        <h1>{{ h1 | default(page_title) }}</h1>
+
+        {% if subtitle %}
+        <p class="intro">{{ subtitle }}</p>
+        {% endif %}
+
+        {% if author %}
+        <div class="author-line">
+          <div class="author-avatar">{{ author.name[0] | default('A') }}</div>
+          <span>By <strong>{{ author.name }}</strong>{% if author.title %} &middot; {{ author.title }}{% endif %}</span>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== QUICK ANSWER BOX ========== -->
+  {% if quick_answer %}
+  <div class="container">
+    <div class="narrow">
+      <div class="quick-answer">
+        <div class="qa-label">
+          <span class="icon">A</span>
+          Quick Answer
+        </div>
+        <p>{{ quick_answer }}</p>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ========== CHARTS ========== -->
+  {% if graph_data %}
+  <div class="container">
+    <div class="narrow">
+      {% for chart in graph_data %}
+      {% if chart.labels and chart.values %}
+      <div class="chart-card">
+        {% if chart.title %}<div class="chart-title">{{ chart.title }}</div>{% endif %}
+        <div class="chart-canvas-wrap">
+          <canvas id="lt-chart-{{ loop.index }}" height="260"></canvas>
+        </div>
+        {% if chart.source %}<div class="chart-source">Source: {{ chart.source }}</div>{% endif %}
+        <script>
+          (function() {
+            var ctx = document.getElementById('lt-chart-{{ loop.index }}').getContext('2d');
+            var unit = '{{ chart.unit | default("") }}';
+            new Chart(ctx, {
+              type: '{{ chart.type | default("bar") }}',
+              data: {
+                labels: {{ chart.labels | tojson }},
+                datasets: [{
+                  data: {{ chart.values | tojson }},
+                  backgroundColor: ['rgba(82,46,211,0.75)','rgba(82,46,211,0.55)','rgba(82,46,211,0.4)','rgba(82,46,211,0.3)','rgba(82,46,211,0.2)'],
+                  borderColor: '#522ED3', borderWidth: 2, borderRadius: 6
+                }]
+              },
+              options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: { y: { beginAtZero: false, ticks: { callback: function(v){ return v + (unit||''); } } } }
+              }
+            });
+          })();
+        </script>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ========== ARTICLE BODY ========== -->
+  <div class="container">
+    <div class="narrow lt-body">
+
+      {% if body_sections %}
+        {% for section in body_sections %}
+
+          {% if section.heading %}
+          <h2 id="section-{{ loop.index }}">{{ section.heading }}</h2>
+          {% endif %}
+
+          {% if section.content %}
+          <div class="section-body">{{ section.content | safe }}</div>
+          {% endif %}
+
+          {% if section.key_takeaway %}
+          <div class="key-takeaway">
+            <div class="takeaway-label">Key Takeaway</div>
+            <p>{{ section.key_takeaway | safe }}</p>
+          </div>
+          {% endif %}
+
+          {% if section.bullets %}
+          <ul>
+            {% for bullet in section.bullets %}
+            <li>{{ bullet | safe }}</li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+
+        {% endfor %}
+      {% endif %}
+
+      {% if expert_tip %}
+      <div class="key-takeaway" style="border-left-color: #10B981; background: #F0FDF4;">
+        <div class="takeaway-label" style="color: #10B981;">Expert Tip</div>
+        <p>&ldquo;{{ expert_tip.quote }}&rdquo; &mdash; <strong>{{ expert_tip.name }}</strong>{% if expert_tip.title %}, {{ expert_tip.title }}{% endif %}</p>
+      </div>
+      {% endif %}
+
+    </div>
+  </div>
+
+  <!-- ========== RELATED TOPICS ========== -->
+  {% if related_topics %}
+  <div class="container">
+    <div class="narrow">
+      <section class="related-topics">
+        <h3>Related topics</h3>
+        <div class="topic-pills">
+          {% for topic in related_topics %}
+          <a href="{{ topic.url }}" class="topic-pill">{{ topic.text }}</a>
+          {% endfor %}
+        </div>
+      </section>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ========== FAQ ========== -->
+  {% if faqs %}
+  <section class="section-pad section-alt" id="faqs">
+    <div class="container">
+      <div class="narrow">
+        <h2 class="section-title">Frequently asked questions</h2>
+        <p class="section-subtitle">Quick answers to common queries</p>
+        <div class="faq-list">
+          {% for faq in faqs %}
+          <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+              <span>{{ faq.question }}</span>
+              <span class="faq-toggle">+</span>
+            </button>
+            <div class="faq-answer">
+              <p>{{ faq.answer | safe }}</p>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ========== BOTTOM CTA ========== -->
+  <section class="section-pad" id="cta-bottom">
+    <div class="container">
+      <div class="narrow">
+        <div class="cta-banner">
+          <h2>Protect what matters most</h2>
+          <p>Get a free quote in under 2 minutes. No paperwork needed.</p>
+          <a href="#" class="cta-btn">Get a FREE quote &rarr;</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== SLIM FOOTER ========== -->
+  <footer class="slim-footer">
+    <div class="container">
+      <div class="slim-footer-inner">
+        <div class="footer-logo"><span>ACKO</span>.</div>
+        {% if internal_links %}
+        <div class="slim-footer-links">
+          {% for link in internal_links[:8] %}
+          <a href="{{ link.href }}">{{ link.text }}</a>
+          {% endfor %}
+        </div>
+        {% endif %}
+        <div class="footer-copy">
+          &copy; 2026 Acko Technology &amp; Services Pvt Ltd. CIN: U74110KA2016PTC120161 &mdash; IRDAI Reg. No. 158
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <!-- ========== SCRIPTS ========== -->
+  <script>
+    // Reading progress bar
+    var pb = document.getElementById('progress-bar');
+    if (pb) {
+      window.addEventListener('scroll', function() {
+        var scrollTop = window.scrollY || document.documentElement.scrollTop;
+        var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        pb.style.width = (docHeight > 0 ? Math.min((scrollTop / docHeight) * 100, 100) : 0) + '%';
+      }, { passive: true });
+    }
+
+    // FAQ toggle
+    function toggleFaq(btn) {
+      var answer = btn.nextElementSibling;
+      var toggle = btn.querySelector('.faq-toggle');
+      var isOpen = answer.classList.contains('open');
+
+      document.querySelectorAll('.faq-answer.open').forEach(function(el) {
+        el.classList.remove('open');
+        el.previousElementSibling.querySelector('.faq-toggle').textContent = '+';
+        el.previousElementSibling.setAttribute('aria-expanded', 'false');
+      });
+
+      if (!isOpen) {
+        answer.classList.add('open');
+        toggle.textContent = '\u2212';
+        btn.setAttribute('aria-expanded', 'true');
+      }
+    }
+
+    // Scroll-reveal animation
+    var observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('animate-in');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.quick-answer, .faq-item, .stat-callout, .key-takeaway, .topic-pill').forEach(function(el) {
+      observer.observe(el);
+    });
+  </script>
+
+</body>
+</html>

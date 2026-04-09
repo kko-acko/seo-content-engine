@@ -1,0 +1,1456 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ page_title | default('Acko Insurance') }}</title>
+  <meta name="description" content="{{ meta_description | default('') }}">
+  {% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="{{ page_title | default('Acko Insurance') }}">
+  <meta property="og:description" content="{{ meta_description | default('') }}">
+  {% if canonical_url %}<meta property="og:url" content="{{ canonical_url }}">{% endif %}
+  <meta property="og:site_name" content="Acko">
+  <meta property="og:image" content="https://www.acko.com/assets/img/acko-og.png">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@AckoInsurance">
+  <meta name="twitter:title" content="{{ page_title | default('Acko Insurance') }}">
+  <meta name="twitter:description" content="{{ meta_description | default('') }}">
+  <meta name="twitter:image" content="https://www.acko.com/assets/img/acko-og.png">
+
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Article",
+        "headline": {{ (h1 or page_title or '') | tojson }},
+        "description": {{ (meta_description or '') | tojson }},
+        "url": {{ (canonical_url or '') | tojson }},
+        "publisher": {
+          "@type": "Organization",
+          "name": "Acko",
+          "url": "https://www.acko.com",
+          "logo": { "@type": "ImageObject", "url": "https://www.acko.com/assets/img/acko-logo.png" }
+        }{% if author and author.name %},
+        "author": { "@type": "Person", "name": {{ author.name | tojson }} }{% endif %}
+      }{% if breadcrumb %},
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {% for crumb in breadcrumb %}
+          { "@type": "ListItem", "position": {{ loop.index }}, "name": {{ crumb.text | tojson }}, "item": {{ (crumb.url or '#') | tojson }} }{% if not loop.last %},{% endif %}
+          {% endfor %}
+        ]
+      }{% endif %}{% if faqs %},
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {% for faq in faqs %}
+          {
+            "@type": "Question",
+            "name": {{ faq.question | tojson }},
+            "acceptedAnswer": { "@type": "Answer", "text": {{ faq.answer | tojson }} }
+          }{% if not loop.last %},{% endif %}
+          {% endfor %}
+        ]
+      }{% endif %}
+    ]
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* ========== RESET & BASE ========== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #1A1A2E;
+      background: #FFFFFF;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    img { max-width: 100%; display: block; }
+    a { color: inherit; text-decoration: none; }
+    ul, ol { list-style: none; }
+    button, input { font-family: inherit; border: none; outline: none; }
+
+    /* ========== UTILITIES ========== */
+    .container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+    .section-title {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      color: #1A1A2E;
+      letter-spacing: -0.02em;
+    }
+    .section-subtitle {
+      font-size: 1.05rem;
+      color: #6B7280;
+      margin-bottom: 2rem;
+      max-width: 600px;
+    }
+    .section-pad { padding: 72px 0; }
+    .section-alt { background: #F9FAFB; }
+    .purple-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #522ED3;
+      color: #fff;
+      font-weight: 600;
+      font-size: 1rem;
+      padding: 14px 32px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      text-decoration: none;
+    }
+    .purple-btn:hover {
+      background: #4020B8;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(82, 46, 211, 0.35);
+    }
+
+    /* ========== STICKY NAV ========== */
+    .sticky-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(255,255,255,0.95);
+      border-bottom: 1px solid #E5E7EB;
+      padding: 12px 0;
+      backdrop-filter: blur(12px);
+    }
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-logo {
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: #522ED3;
+      letter-spacing: -0.03em;
+    }
+    .nav-logo span { color: #1A1A2E; }
+    .nav-cta {
+      background: #522ED3;
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 10px 24px;
+      border-radius: 10px;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+    .nav-cta:hover { background: #4020B8; transform: translateY(-1px); }
+
+    /* ========== BREADCRUMB (light bg) ========== */
+    .breadcrumb-bar {
+      background: #F9FAFB;
+      padding: 14px 0;
+      border-bottom: 1px solid #E5E7EB;
+    }
+    .breadcrumb-bar nav {
+      font-size: 0.85rem;
+      color: #9CA3AF;
+    }
+    .breadcrumb-bar a {
+      color: #6B7280;
+      transition: color 0.2s;
+    }
+    .breadcrumb-bar a:hover { color: #522ED3; }
+    .breadcrumb-bar .sep { margin: 0 6px; color: #D1D5DB; }
+    .breadcrumb-bar .current { color: #1A1A2E; font-weight: 500; }
+
+    /* ========== HERO (article style) ========== */
+    .article-hero {
+      padding: 48px 0 40px;
+      border-bottom: 1px solid #F3F4F6;
+    }
+    .article-hero .product-label {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: #522ED3;
+      margin-bottom: 16px;
+      background: #F3F0FF;
+      padding: 5px 14px;
+      border-radius: 6px;
+    }
+    .article-hero h1 {
+      font-size: 2.5rem;
+      font-weight: 900;
+      line-height: 1.15;
+      margin-bottom: 16px;
+      max-width: 800px;
+      letter-spacing: -0.03em;
+      color: #1A1A2E;
+    }
+    .article-hero .intro {
+      font-size: 1.1rem;
+      color: #4B5563;
+      line-height: 1.7;
+      max-width: 700px;
+      margin-bottom: 28px;
+    }
+
+    /* ========== AUTHOR / REVIEWER BADGES ========== */
+    .author-badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 28px;
+      align-items: center;
+      padding: 16px 0;
+    }
+    .author-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .author-avatar {
+      width: 36px; height: 36px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #522ED3, #7C3AED);
+      color: #fff;
+      font-size: 0.8rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .author-badge .badge-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #9CA3AF;
+    }
+    .author-badge .badge-name {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #1A1A2E;
+    }
+    .author-badge .badge-title {
+      font-size: 0.8rem;
+      color: #6B7280;
+    }
+    .author-badge .badge-date {
+      font-size: 0.78rem;
+      color: #9CA3AF;
+    }
+
+    /* ========== LAYOUT: ARTICLE + SIDEBAR ========== */
+    .article-layout {
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 48px;
+      padding: 48px 0;
+    }
+    .article-main { min-width: 0; }
+    .article-sidebar {
+      position: relative;
+    }
+
+    /* ========== TABLE OF CONTENTS (sidebar) ========== */
+    .toc-sticky {
+      position: sticky;
+      top: 80px;
+    }
+    .toc-box {
+      background: #F9FAFB;
+      border: 1px solid #E5E7EB;
+      border-radius: 14px;
+      padding: 24px;
+    }
+    .toc-box h4 {
+      font-size: 0.78rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #9CA3AF;
+      margin-bottom: 16px;
+    }
+    .toc-box ul {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .toc-box ul li a {
+      display: block;
+      padding: 8px 0 8px 14px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #6B7280;
+      border-left: 2px solid #E5E7EB;
+      transition: all 0.2s;
+      line-height: 1.4;
+    }
+    .toc-box ul li a:hover,
+    .toc-box ul li a.active {
+      color: #522ED3;
+      border-left-color: #522ED3;
+    }
+
+    /* Sidebar CTA */
+    .sidebar-cta {
+      margin-top: 24px;
+      background: linear-gradient(135deg, #522ED3 0%, #7C3AED 100%);
+      border-radius: 14px;
+      padding: 28px 24px;
+      color: #fff;
+      text-align: center;
+    }
+    .sidebar-cta h4 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .sidebar-cta p {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.8);
+      margin-bottom: 16px;
+      line-height: 1.5;
+    }
+    .sidebar-cta .sidebar-btn {
+      display: block;
+      background: #fff;
+      color: #522ED3;
+      font-weight: 700;
+      font-size: 0.88rem;
+      padding: 12px 20px;
+      border-radius: 10px;
+      text-align: center;
+      transition: all 0.2s;
+    }
+    .sidebar-cta .sidebar-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    }
+
+    /* ========== ARTICLE BODY ========== */
+    .article-body h2 {
+      font-size: 1.6rem;
+      font-weight: 800;
+      margin: 48px 0 16px;
+      color: #1A1A2E;
+      letter-spacing: -0.01em;
+      scroll-margin-top: 80px;
+    }
+    .article-body h2:first-child { margin-top: 0; }
+    .article-body h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin: 28px 0 12px;
+      color: #1A1A2E;
+    }
+    .article-body p {
+      font-size: 1rem;
+      color: #4B5563;
+      line-height: 1.85;
+      margin-bottom: 16px;
+      max-width: 720px;
+    }
+    .article-body a {
+      color: #522ED3;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      text-decoration-thickness: 1px;
+    }
+    .article-body a:hover { color: #4020B8; text-decoration-thickness: 2px; }
+    .article-body ul, .article-body ol {
+      margin-bottom: 20px;
+      padding-left: 0;
+    }
+    .article-body ul li, .article-body ol li {
+      font-size: 0.95rem;
+      color: #4B5563;
+      line-height: 1.7;
+      padding-left: 22px;
+      position: relative;
+      margin-bottom: 8px;
+    }
+    .article-body ul li::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 10px;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #522ED3;
+    }
+    .article-body ol { counter-reset: ol-counter; }
+    .article-body ol li { counter-increment: ol-counter; }
+    .article-body ol li::before {
+      content: counter(ol-counter) '.';
+      position: absolute;
+      left: 0;
+      font-weight: 700;
+      color: #522ED3;
+      font-size: 0.88rem;
+    }
+    .article-body strong { color: #1A1A2E; }
+
+    /* ========== KEY TAKEAWAY BOX ========== */
+    .key-takeaway {
+      border-left: 4px solid #522ED3;
+      background: #F8F7FF;
+      border-radius: 0 12px 12px 0;
+      padding: 24px 28px;
+      margin: 28px 0;
+    }
+    .key-takeaway .takeaway-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #522ED3;
+      margin-bottom: 8px;
+    }
+    .key-takeaway p {
+      font-size: 0.95rem;
+      color: #374151;
+      line-height: 1.7;
+      margin-bottom: 0;
+    }
+
+    /* ========== EXPERT TIP CALLOUT ========== */
+    .expert-callout {
+      background: linear-gradient(135deg, #F8F7FF 0%, #EDE9FE 100%);
+      border: 1px solid #D1C4E9;
+      border-radius: 16px;
+      padding: 28px;
+      margin: 28px 0;
+      display: flex;
+      gap: 16px;
+      align-items: flex-start;
+    }
+    .expert-callout .callout-icon {
+      font-size: 1.3rem;
+      flex-shrink: 0;
+      width: 44px; height: 44px;
+      background: #fff;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(82,46,211,0.1);
+    }
+    .expert-callout blockquote {
+      font-size: 0.95rem;
+      color: #374151;
+      line-height: 1.7;
+      font-style: italic;
+      margin-bottom: 8px;
+    }
+    .expert-callout .callout-author {
+      font-size: 0.82rem;
+      color: #6B7280;
+    }
+    .expert-callout .callout-author strong { color: #1A1A2E; }
+
+    /* ========== COMPARISON TABLE ========== */
+    .styled-table-wrap {
+      overflow-x: auto;
+      border-radius: 14px;
+      border: 1px solid #E5E7EB;
+      margin: 24px 0;
+    }
+    .styled-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 480px;
+    }
+    .styled-table thead th {
+      background: #1A1A2E;
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 14px 20px;
+      text-align: left;
+    }
+    .styled-table tbody td {
+      padding: 13px 20px;
+      font-size: 0.92rem;
+      border-bottom: 1px solid #F3F4F6;
+      color: #4B5563;
+    }
+    .styled-table tbody tr:last-child td { border-bottom: none; }
+    .styled-table tbody tr:hover { background: #F8F7FF; }
+    .styled-table tbody td:first-child { font-weight: 600; color: #1A1A2E; }
+
+    /* ========== BULLET SUMMARY ========== */
+    .bullet-summary {
+      background: #F9FAFB;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin: 20px 0 36px;
+    }
+    .bullet-summary .summary-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #9CA3AF;
+      margin-bottom: 12px;
+    }
+    .bullet-summary ul { display: flex; flex-direction: column; gap: 8px; }
+    .bullet-summary ul li {
+      font-size: 0.9rem;
+      color: #4B5563;
+      padding-left: 20px;
+      position: relative;
+      line-height: 1.55;
+    }
+    .bullet-summary ul li::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 8px;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #10B981;
+    }
+
+    /* ========== MID-ARTICLE CTA ========== */
+    .mid-cta {
+      background: linear-gradient(135deg, #522ED3 0%, #7C3AED 100%);
+      border-radius: 16px;
+      padding: 36px 32px;
+      margin: 40px 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      color: #fff;
+    }
+    .mid-cta .mid-cta-text h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: #fff;
+    }
+    .mid-cta .mid-cta-text p {
+      font-size: 0.9rem;
+      color: rgba(255,255,255,0.8);
+      margin-bottom: 0;
+    }
+    .mid-cta .mid-cta-btn {
+      background: #fff;
+      color: #522ED3;
+      font-weight: 700;
+      font-size: 0.9rem;
+      padding: 12px 28px;
+      border-radius: 10px;
+      white-space: nowrap;
+      transition: all 0.2s;
+      flex-shrink: 0;
+    }
+    .mid-cta .mid-cta-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    }
+
+    /* ========== RELATED ARTICLES ========== */
+    .related-articles {
+      border-top: 1px solid #E5E7EB;
+      padding: 48px 0;
+    }
+    .articles-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 20px;
+    }
+    .article-card {
+      background: #fff;
+      border: 1px solid #E5E7EB;
+      border-radius: 16px;
+      padding: 24px;
+      transition: all 0.25s;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .article-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 24px; right: 24px;
+      height: 3px;
+      background: linear-gradient(90deg, #522ED3, #7C3AED);
+      border-radius: 0 0 16px 16px;
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+    .article-card:hover {
+      box-shadow: 0 12px 40px rgba(0,0,0,0.08);
+      transform: translateY(-4px);
+      border-color: #D1C4E9;
+    }
+    .article-card:hover::after { opacity: 1; }
+    .article-card h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #1A1A2E;
+      line-height: 1.4;
+    }
+    .article-card p {
+      font-size: 0.85rem;
+      color: #6B7280;
+      line-height: 1.6;
+      flex: 1;
+      margin-bottom: 12px;
+    }
+    .article-card .read-link {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #522ED3;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: gap 0.2s;
+    }
+    .article-card .read-link:hover { gap: 8px; }
+
+    /* ========== INTERNAL LINKS ========== */
+    .internal-links {
+      background: #F9FAFB;
+      border-top: 1px solid #E5E7EB;
+      padding: 36px 0;
+    }
+    .internal-links h3 {
+      font-size: 1rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #1A1A2E;
+    }
+    .internal-links-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .internal-links-grid a {
+      font-size: 0.85rem;
+      color: #522ED3;
+      padding: 8px 16px;
+      background: #fff;
+      border: 1px solid #E5E7EB;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+    .internal-links-grid a:hover {
+      border-color: #522ED3;
+      background: #F8F7FF;
+    }
+
+    /* ========== FAQ ACCORDION ========== */
+    .faq-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 800px;
+    }
+    .faq-item {
+      border: 1px solid #E5E7EB;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fff;
+      transition: all 0.25s;
+    }
+    .faq-item:hover { border-color: #D1C4E9; box-shadow: 0 2px 12px rgba(82,46,211,0.06); }
+    .faq-question {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 24px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1A1A2E;
+      background: none;
+      border: none;
+      width: 100%;
+      text-align: left;
+      transition: background 0.2s;
+    }
+    .faq-question:hover { background: #FAFAFA; }
+    .faq-toggle {
+      font-size: 1.4rem;
+      color: #522ED3;
+      font-weight: 300;
+      transition: transform 0.3s;
+      flex-shrink: 0;
+      margin-left: 16px;
+      width: 28px; height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: #F3F0FF;
+    }
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s ease, padding 0.35s ease;
+      padding: 0 24px;
+    }
+    .faq-answer.open {
+      max-height: 600px;
+      padding: 0 24px 20px;
+    }
+    .faq-answer p {
+      font-size: 0.95rem;
+      color: #6B7280;
+      line-height: 1.75;
+    }
+
+    /* ========== CTA BANNER ========== */
+    .cta-banner {
+      background: linear-gradient(135deg, #522ED3 0%, #7C3AED 50%, #A78BFA 100%);
+      border-radius: 20px;
+      padding: 56px 48px;
+      text-align: center;
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-banner::before {
+      content: '';
+      position: absolute;
+      top: -50%; right: -20%;
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+    }
+    .cta-banner h2 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+      position: relative;
+      z-index: 1;
+      letter-spacing: -0.02em;
+    }
+    .cta-banner p {
+      font-size: 1.05rem;
+      color: rgba(255,255,255,0.85);
+      margin-bottom: 32px;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+      position: relative;
+      z-index: 1;
+    }
+    .cta-banner .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #fff;
+      color: #522ED3;
+      font-weight: 700;
+      font-size: 1.05rem;
+      padding: 16px 40px;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      border: none;
+      position: relative;
+      z-index: 1;
+    }
+    .cta-banner .cta-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.2);
+    }
+
+    /* ========== AUTHOR BIO ========== */
+    .author-bio {
+      border-top: 1px solid #E5E7EB;
+      padding: 40px 0;
+    }
+    .bio-card {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      background: #F9FAFB;
+      border: 1px solid #E5E7EB;
+      border-radius: 16px;
+      padding: 28px;
+      max-width: 700px;
+    }
+    .bio-avatar {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #522ED3, #7C3AED);
+      color: #fff;
+      font-size: 1.4rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .bio-info h4 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #1A1A2E;
+      margin-bottom: 2px;
+    }
+    .bio-info .bio-title {
+      font-size: 0.85rem;
+      color: #522ED3;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .bio-info p {
+      font-size: 0.88rem;
+      color: #6B7280;
+      line-height: 1.6;
+    }
+
+    /* ========== FOOTER ========== */
+    .page-footer {
+      background: #1A1A2E;
+      color: rgba(255,255,255,0.7);
+      padding: 56px 0 32px;
+    }
+    .footer-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 24px;
+      margin-bottom: 28px;
+    }
+    .footer-grid a {
+      font-size: 0.88rem;
+      color: rgba(255,255,255,0.55);
+      padding: 6px 14px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+    .footer-grid a:hover { color: #fff; background: rgba(255,255,255,0.1); }
+    .footer-copy {
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.3);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding-top: 20px;
+    }
+
+    /* ========== RESPONSIVE ========== */
+    @media (max-width: 768px) {
+      .article-hero h1 { font-size: 1.8rem; }
+      .section-title { font-size: 1.5rem; }
+      .section-pad { padding: 48px 0; }
+      .article-layout {
+        grid-template-columns: 1fr;
+        gap: 0;
+      }
+      .article-sidebar {
+        order: -1;
+        margin-bottom: 32px;
+      }
+      .toc-sticky { position: static; }
+      .sidebar-cta { display: none; }
+      .mid-cta {
+        flex-direction: column;
+        text-align: center;
+        padding: 28px 24px;
+      }
+      .cta-banner { padding: 36px 24px; border-radius: 16px; }
+      .cta-banner h2 { font-size: 1.5rem; }
+      .expert-callout { flex-direction: column; padding: 20px; }
+      .articles-grid { grid-template-columns: 1fr; }
+      .bio-card { flex-direction: column; text-align: center; align-items: center; }
+      .author-badges { gap: 8px 20px; }
+      .styled-table thead th,
+      .styled-table tbody td { padding: 10px 14px; font-size: 0.85rem; }
+    }
+
+    /* ========== READING PROGRESS BAR ========== */
+    .progress-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 0%;
+      height: 3px;
+      background: linear-gradient(90deg, #522ED3, #7C3AED);
+      z-index: 200;
+      transition: width 0.1s linear;
+    }
+
+    /* ========== MOBILE STICKY CTA ========== */
+    .mobile-sticky-cta {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      z-index: 150;
+      background: #fff;
+      border-top: 1px solid #E5E7EB;
+      padding: 12px 20px;
+      box-shadow: 0 -4px 24px rgba(0,0,0,0.08);
+    }
+    .mobile-sticky-cta a {
+      display: block;
+      background: #522ED3;
+      color: #fff;
+      font-weight: 700;
+      font-size: 1rem;
+      text-align: center;
+      padding: 14px;
+      border-radius: 12px;
+      text-decoration: none;
+    }
+    @media (max-width: 768px) {
+      .mobile-sticky-cta { display: block; }
+      body { padding-bottom: 80px; }
+    }
+
+    /* ========== ANIMATIONS ========== */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-in {
+      animation: fadeInUp 0.5s ease forwards;
+      opacity: 0;
+    }
+  </style>
+
+  <!-- Chart.js for data visualisation -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- Layout variant styles -->
+  <style>
+    /* ── LISTICLE variant ── */
+    body[data-layout="listicle"] .article-body {
+      counter-reset: section-counter;
+    }
+    body[data-layout="listicle"] .article-body h2 {
+      counter-increment: section-counter;
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    body[data-layout="listicle"] .article-body h2::before {
+      content: counter(section-counter, decimal-leading-zero);
+      font-size: 2.5rem;
+      font-weight: 900;
+      color: #522ED3;
+      line-height: 1;
+      flex-shrink: 0;
+      opacity: 0.25;
+    }
+    body[data-layout="listicle"] .article-body .section-body {
+      border-left: 3px solid #522ED3;
+      padding-left: 1.25rem;
+      margin-bottom: 2rem;
+    }
+
+    /* ── HOW-TO variant ── */
+    body[data-layout="how-to"] .article-body {
+      counter-reset: step-counter;
+      position: relative;
+    }
+    body[data-layout="how-to"] .article-body h2 {
+      counter-increment: step-counter;
+      background: #F8F7FF;
+      border-radius: 0.75rem;
+      padding: 1rem 1.25rem 1rem 4.5rem;
+      position: relative;
+      margin-top: 2.5rem;
+    }
+    body[data-layout="how-to"] .article-body h2::before {
+      content: counter(step-counter);
+      position: absolute;
+      left: 1.25rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 2rem;
+      height: 2rem;
+      background: #522ED3;
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.875rem;
+      font-weight: 700;
+      line-height: 1;
+    }
+    body[data-layout="how-to"] .article-body .section-body {
+      padding-left: 1rem;
+      border-left: 2px dashed #E5E7EB;
+      margin-left: 2.25rem;
+      padding-bottom: 1.5rem;
+    }
+
+    /* ── ESSAY variant ── */
+    body[data-layout="essay"] .article-layout {
+      display: block;
+    }
+    body[data-layout="essay"] .article-sidebar {
+      display: none;
+    }
+    body[data-layout="essay"] .article-main {
+      max-width: 760px;
+      margin: 0 auto;
+    }
+    body[data-layout="essay"] .article-body p,
+    body[data-layout="essay"] .article-body li {
+      font-size: 1.125rem;
+      line-height: 1.85;
+    }
+    body[data-layout="essay"] .mid-cta {
+      display: none;
+    }
+
+    /* ── CHART styles ── */
+    .chart-section {
+      margin: 2.5rem 0;
+    }
+    .chart-card {
+      background: white;
+      border: 1px solid #E5E7EB;
+      border-radius: 12px;
+      padding: 1.5rem;
+    }
+    .chart-title {
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1A1A2E;
+      margin-bottom: 1rem;
+    }
+    .chart-canvas-wrap {
+      position: relative;
+      max-height: 320px;
+    }
+    .chart-source {
+      margin-top: 0.5rem;
+      font-size: 0.75rem;
+      color: #6B7280;
+    }
+  </style>
+</head>
+<body data-layout="{{ layout_type | default('explainer') }}">
+
+  <!-- Reading progress bar -->
+  <div class="progress-bar" id="progress-bar"></div>
+
+  <!-- Mobile sticky CTA -->
+  <div class="mobile-sticky-cta">
+    <a href="https://www.acko.com/car-insurance/">Get an instant quote &rarr;</a>
+  </div>
+
+  <!-- ========== STICKY NAV ========== -->
+  <nav class="sticky-nav">
+    <div class="container nav-inner">
+      <div class="nav-logo">ACKO<span>.</span></div>
+      <a href="#cta-bottom" class="nav-cta">Get a FREE quote &rarr;</a>
+    </div>
+  </nav>
+
+  <!-- ========== BREADCRUMB ========== -->
+  {% if breadcrumb %}
+  <div class="breadcrumb-bar">
+    <div class="container">
+      <nav aria-label="Breadcrumb">
+        {% for crumb in breadcrumb %}
+          {% if not loop.last %}
+            <a href="{{ crumb.url | default('#') }}">{{ crumb.text }}</a><span class="sep">/</span>
+          {% else %}
+            <span class="current">{{ crumb.text }}</span>
+          {% endif %}
+        {% endfor %}
+      </nav>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ========== HERO ========== -->
+  <section class="article-hero">
+    <div class="container">
+      {% if product_label %}
+      <div class="product-label">{{ product_label }}</div>
+      {% endif %}
+
+      <h1>{{ h1 | default(page_title) }}</h1>
+
+      {% if meta_description %}
+      <p class="intro">{{ meta_description }}</p>
+      {% endif %}
+
+      {% if author or reviewer %}
+      <div class="author-badges">
+        {% if author %}
+        <div class="author-badge">
+          <div class="author-avatar">{{ author.name[0] | default('A') }}</div>
+          <div>
+            <div class="badge-label">Written by</div>
+            <div class="badge-name">{{ author.name }}</div>
+            {% if author.title %}<div class="badge-title">{{ author.title }}</div>{% endif %}
+          </div>
+        </div>
+        {% endif %}
+        {% if reviewer %}
+        <div class="author-badge">
+          <div class="author-avatar" style="background: linear-gradient(135deg, #10B981, #059669);">{{ reviewer.name[0] | default('R') }}</div>
+          <div>
+            <div class="badge-label">Reviewed by</div>
+            <div class="badge-name">{{ reviewer.name }}</div>
+            {% if reviewer.title %}<div class="badge-title">{{ reviewer.title }}</div>{% endif %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- ========== CHARTS (data visualisation) ========== -->
+  {% if graph_data %}
+  <div class="container">
+    <div class="chart-section">
+      {% for chart in graph_data %}
+      {% if chart.labels and chart.values %}
+      <div class="chart-card" style="margin-bottom: 1.5rem;">
+        {% if chart.title %}<div class="chart-title">{{ chart.title }}</div>{% endif %}
+        <div class="chart-canvas-wrap">
+          <canvas id="chart-{{ loop.index }}" height="300"></canvas>
+        </div>
+        {% if chart.source %}<div class="chart-source">Source: {{ chart.source }}</div>{% endif %}
+        <script>
+          (function() {
+            var ctx = document.getElementById('chart-{{ loop.index }}').getContext('2d');
+            var unit = '{{ chart.unit | default("") }}';
+            new Chart(ctx, {
+              type: '{{ chart.type | default("bar") }}',
+              data: {
+                labels: {{ chart.labels | tojson }},
+                datasets: [{
+                  label: '{{ chart.title | default("") }}' + (unit ? ' (' + unit + ')' : ''),
+                  data: {{ chart.values | tojson }},
+                  backgroundColor: [
+                    'rgba(82,46,211,0.75)','rgba(82,46,211,0.6)','rgba(82,46,211,0.45)',
+                    'rgba(82,46,211,0.35)','rgba(82,46,211,0.25)','rgba(82,46,211,0.15)'
+                  ],
+                  borderColor: '#522ED3',
+                  borderWidth: 2,
+                  borderRadius: 6,
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                  legend: { display: false },
+                  tooltip: {
+                    callbacks: {
+                      label: function(ctx) {
+                        return ctx.parsed.y + (unit ? ' ' + unit : '');
+                      }
+                    }
+                  }
+                },
+                scales: {
+                  y: {
+                    beginAtZero: false,
+                    ticks: { callback: function(v) { return v + (unit ? unit : ''); } }
+                  }
+                }
+              }
+            });
+          })();
+        </script>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ========== MAIN CONTENT AREA ========== -->
+  <div class="container">
+    <div class="article-layout">
+
+      <!-- ===== ARTICLE BODY ===== -->
+      <main class="article-main">
+        <div class="article-body">
+
+          {% if body_sections %}
+            {% for section in body_sections %}
+
+              {% if section.heading %}
+              <h2 id="section-{{ loop.index }}">{{ section.heading }}</h2>
+              {% endif %}
+
+              {% if section.content %}
+              <div class="section-body">{{ section.content | safe }}</div>
+              {% endif %}
+
+              {% if section.key_takeaway %}
+              <div class="key-takeaway">
+                <div class="takeaway-label">Key Takeaway</div>
+                <p>{{ section.key_takeaway | safe }}</p>
+              </div>
+              {% endif %}
+
+              {% if section.bullets %}
+              <div class="bullet-summary">
+                <div class="summary-label">Quick Summary</div>
+                <ul>
+                  {% for bullet in section.bullets %}
+                  <li>{{ bullet | safe }}</li>
+                  {% endfor %}
+                </ul>
+              </div>
+              {% endif %}
+
+              {# Mid-article CTA after the 3rd section #}
+              {% if loop.index == 3 %}
+              <div class="mid-cta">
+                <div class="mid-cta-text">
+                  <h3>Get a free quote</h3>
+                  <p>Check your premium in under 2 minutes</p>
+                </div>
+                <a href="#cta-bottom" class="mid-cta-btn">Check Prices &rarr;</a>
+              </div>
+              {% endif %}
+
+            {% endfor %}
+          {% endif %}
+
+          {% if expert_tip %}
+          <div class="expert-callout">
+            <div class="callout-icon">&#128161;</div>
+            <div>
+              <blockquote>&ldquo;{{ expert_tip.quote }}&rdquo;</blockquote>
+              <div class="callout-author">
+                <strong>{{ expert_tip.name }}</strong>{% if expert_tip.title %}, {{ expert_tip.title }}{% endif %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+        </div>
+      </main>
+
+      <!-- ===== SIDEBAR ===== -->
+      <aside class="article-sidebar">
+        <div class="toc-sticky">
+
+          {% if toc %}
+          <div class="toc-box">
+            <h4>In this article</h4>
+            <ul>
+              {% for item in toc %}
+              <li><a href="#{{ item.id | default('section-' ~ loop.index) }}">{{ item.text }}</a></li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+
+          <div class="sidebar-cta">
+            <h4>Need insurance?</h4>
+            <p>Get your free quote in under 2 minutes. Zero paperwork.</p>
+            <a href="#cta-bottom" class="sidebar-btn">Get a FREE quote &rarr;</a>
+          </div>
+
+        </div>
+      </aside>
+
+    </div>
+  </div>
+
+  <!-- ========== RELATED ARTICLES ========== -->
+  {% if articles %}
+  <section class="related-articles">
+    <div class="container">
+      <h2 class="section-title">Related articles</h2>
+      <p class="section-subtitle">Dive deeper into topics that matter to you</p>
+      <div class="articles-grid">
+        {% for article in articles %}
+        <a href="{{ article.url }}" class="article-card">
+          <h3>{{ article.title }}</h3>
+          <p>{{ article.description }}</p>
+          <span class="read-link">Read more &rarr;</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ========== INTERNAL LINKS ========== -->
+  {% if internal_links %}
+  <section class="internal-links">
+    <div class="container">
+      <h3>Explore more topics</h3>
+      <div class="internal-links-grid">
+        {% for link in internal_links %}
+        <a href="{{ link.href }}">{{ link.text }}</a>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ========== FAQ ========== -->
+  {% if faqs %}
+  <section class="section-pad section-alt" id="faqs">
+    <div class="container">
+      <h2 class="section-title">Frequently asked questions</h2>
+      <p class="section-subtitle">Quick answers to common queries</p>
+      <div class="faq-list">
+        {% for faq in faqs %}
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+            <span>{{ faq.question }}</span>
+            <span class="faq-toggle">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>{{ faq.answer | safe }}</p>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ========== BOTTOM CTA ========== -->
+  <section class="section-pad" id="cta-bottom">
+    <div class="container">
+      <div class="cta-banner">
+        <h2>Get a free quote today</h2>
+        <p>No paperwork. No agents. Just honest insurance at great prices.</p>
+        <a href="#" class="cta-btn">Get a FREE quote &rarr;</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== AUTHOR BIO ========== -->
+  {% if author %}
+  <section class="author-bio">
+    <div class="container">
+      <div class="bio-card">
+        <div class="bio-avatar">{{ author.name[0] | default('A') }}</div>
+        <div class="bio-info">
+          <h4>{{ author.name }}</h4>
+          {% if author.title %}<div class="bio-title">{{ author.title }}</div>{% endif %}
+          <p>{{ author.bio | default('Our team of insurance experts creates well-researched, easy-to-understand content to help you make informed decisions about your coverage needs.') }}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ========== FOOTER ========== -->
+  <footer class="page-footer">
+    <div class="container">
+      {% if internal_links %}
+      <div class="footer-grid">
+        {% for link in internal_links %}
+        <a href="{{ link.href }}">{{ link.text }}</a>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div class="footer-copy">
+        &copy; 2026 Acko Technology &amp; Services Pvt Ltd. CIN: U74110KA2016PTC120161 &mdash; IRDAI Reg. No. 158<br>
+        Listed #1 for &ldquo;insurance&rdquo; on the Apple App Store.
+      </div>
+    </div>
+  </footer>
+
+  <!-- ========== SCRIPTS ========== -->
+  <script>
+    // Reading progress bar
+    var progressBar = document.getElementById('progress-bar');
+    if (progressBar) {
+      window.addEventListener('scroll', function() {
+        var scrollTop = window.scrollY || document.documentElement.scrollTop;
+        var docHeight = document.documentElement.scrollHeight - window.innerHeight;
+        var pct = docHeight > 0 ? (scrollTop / docHeight) * 100 : 0;
+        progressBar.style.width = Math.min(pct, 100) + '%';
+      }, { passive: true });
+    }
+
+    // FAQ toggle
+    function toggleFaq(btn) {
+      var answer = btn.nextElementSibling;
+      var toggle = btn.querySelector('.faq-toggle');
+      var isOpen = answer.classList.contains('open');
+
+      document.querySelectorAll('.faq-answer.open').forEach(function(el) {
+        el.classList.remove('open');
+        el.previousElementSibling.querySelector('.faq-toggle').textContent = '+';
+        el.previousElementSibling.setAttribute('aria-expanded', 'false');
+      });
+
+      if (!isOpen) {
+        answer.classList.add('open');
+        toggle.textContent = '\u2212';
+        btn.setAttribute('aria-expanded', 'true');
+      }
+    }
+
+    // TOC active link highlighting
+    var tocLinks = document.querySelectorAll('.toc-box a');
+    if (tocLinks.length > 0) {
+      var sectionObserver = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            var id = entry.target.getAttribute('id');
+            tocLinks.forEach(function(link) {
+              if (link.getAttribute('href') === '#' + id) {
+                link.classList.add('active');
+              } else {
+                link.classList.remove('active');
+              }
+            });
+          }
+        });
+      }, { threshold: 0.3, rootMargin: '-80px 0px -50% 0px' });
+
+      document.querySelectorAll('.article-body h2[id]').forEach(function(section) {
+        sectionObserver.observe(section);
+      });
+
+      // Smooth scroll for TOC links
+      tocLinks.forEach(function(link) {
+        link.addEventListener('click', function(e) {
+          e.preventDefault();
+          var target = document.querySelector(this.getAttribute('href'));
+          if (target) {
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }
+        });
+      });
+    }
+
+    // Scroll-reveal animation
+    var observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('animate-in');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.article-card, .faq-item, .key-takeaway, .expert-callout, .mid-cta').forEach(function(el) {
+      observer.observe(el);
+    });
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,1316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ page_title | default('Acko Insurance') }}</title>
+  <meta name="description" content="{{ meta_description | default('') }}">
+  {% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    /* ========== RESET & BASE ========== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #1A1A2E;
+      background: #FFFFFF;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    img { max-width: 100%; display: block; }
+    a { color: inherit; text-decoration: none; }
+    ul, ol { list-style: none; }
+    button, input { font-family: inherit; border: none; outline: none; }
+
+    /* ========== UTILITIES ========== */
+    .container { width: 100%; max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+    .section-title {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 0.5rem;
+      color: #1A1A2E;
+      letter-spacing: -0.02em;
+    }
+    .section-subtitle {
+      font-size: 1.05rem;
+      color: #6B7280;
+      margin-bottom: 2rem;
+      max-width: 600px;
+    }
+    .section-pad { padding: 72px 0; }
+    .section-alt { background: #F9FAFB; }
+    .purple-btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: #522ED3;
+      color: #fff;
+      font-weight: 600;
+      font-size: 1rem;
+      padding: 14px 32px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border: none;
+      text-decoration: none;
+    }
+    .purple-btn:hover {
+      background: #4020B8;
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(82, 46, 211, 0.35);
+    }
+
+    /* ========== STICKY NAV ========== */
+    .sticky-nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: #fff;
+      border-bottom: 1px solid #E5E7EB;
+      padding: 12px 0;
+      backdrop-filter: blur(12px);
+      background: rgba(255,255,255,0.95);
+    }
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-logo {
+      font-size: 1.5rem;
+      font-weight: 900;
+      color: #522ED3;
+      letter-spacing: -0.03em;
+    }
+    .nav-logo span { color: #1A1A2E; }
+    .nav-cta {
+      background: #522ED3;
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 10px 24px;
+      border-radius: 10px;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+    .nav-cta:hover { background: #4020B8; transform: translateY(-1px); }
+
+    /* ========== TOC / SECTION NAV ========== */
+    .toc-bar {
+      background: #fff;
+      border-bottom: 1px solid #F3F4F6;
+      padding: 0;
+      overflow-x: auto;
+      white-space: nowrap;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+    }
+    .toc-bar::-webkit-scrollbar { display: none; }
+    .toc-inner {
+      display: flex;
+      gap: 0;
+    }
+    .toc-link {
+      display: inline-block;
+      padding: 14px 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: #6B7280;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .toc-link:hover { color: #522ED3; border-bottom-color: #522ED3; }
+
+    /* ========== HERO ========== */
+    .hero {
+      background: #1A1A2E;
+      color: #fff;
+      padding: 48px 0 56px;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: -40%;
+      right: -10%;
+      width: 700px;
+      height: 700px;
+      background: radial-gradient(circle, rgba(82,46,211,0.18) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .hero::after {
+      content: '';
+      position: absolute;
+      bottom: -30%;
+      left: -15%;
+      width: 500px;
+      height: 500px;
+      background: radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 65%);
+      pointer-events: none;
+    }
+    .hero .breadcrumb {
+      font-size: 0.85rem;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 24px;
+      position: relative;
+      z-index: 1;
+    }
+    .hero .breadcrumb a { color: rgba(255,255,255,0.5); transition: color 0.2s; }
+    .hero .breadcrumb a:hover { color: #fff; }
+    .hero .breadcrumb span.sep { margin: 0 6px; }
+    .hero .product-label {
+      display: inline-block;
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      color: #A78BFA;
+      margin-bottom: 16px;
+      position: relative;
+      z-index: 1;
+    }
+    .hero h1 {
+      font-size: 3rem;
+      font-weight: 900;
+      line-height: 1.1;
+      margin-bottom: 16px;
+      max-width: 700px;
+      position: relative;
+      z-index: 1;
+      letter-spacing: -0.03em;
+    }
+    .hero .subtitle {
+      font-size: 1.15rem;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 32px;
+      max-width: 550px;
+      position: relative;
+      z-index: 1;
+      line-height: 1.6;
+    }
+
+    /* ---- Hero CTA Input ---- */
+    .hero-cta-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 14px;
+      padding: 8px;
+      max-width: 480px;
+      position: relative;
+      z-index: 1;
+      backdrop-filter: blur(8px);
+    }
+    .hero-cta-box input {
+      flex: 1;
+      background: transparent;
+      color: #fff;
+      font-size: 1rem;
+      padding: 12px 16px;
+      border: none;
+      outline: none;
+    }
+    .hero-cta-box input::placeholder { color: rgba(255,255,255,0.4); }
+    .hero-cta-box .hero-btn {
+      background: #522ED3;
+      color: #fff;
+      font-weight: 600;
+      font-size: 0.95rem;
+      padding: 12px 28px;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all 0.2s;
+    }
+    .hero-cta-box .hero-btn:hover { background: #6D4AE6; }
+
+    /* ---- Trust Badges ---- */
+    .trust-strip {
+      background: #16162A;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding: 20px 0;
+    }
+    .trust-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px 40px;
+      align-items: center;
+      justify-content: center;
+    }
+    .trust-badge {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: rgba(255,255,255,0.7);
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .trust-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: rgba(82,46,211,0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+    }
+    .trust-badge strong { color: #fff; font-weight: 700; }
+
+    /* ========== AUTHOR BAR ========== */
+    .author-bar {
+      background: #fff;
+      padding: 16px 0;
+      font-size: 0.85rem;
+      color: #6B7280;
+      border-bottom: 1px solid #F3F4F6;
+    }
+    .author-bar .inner {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 32px;
+      align-items: center;
+    }
+    .author-bar .label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: #9CA3AF;
+    }
+    .author-bar .name { font-weight: 600; color: #1A1A2E; }
+
+    /* ========== HERO INTRO (first section) ========== */
+    .hero-intro-section {
+      padding: 48px 0;
+      border-bottom: 1px solid #F3F4F6;
+    }
+    .hero-intro-text {
+      font-size: 1.1rem;
+      color: #374151;
+      line-height: 1.85;
+      max-width: 750px;
+    }
+
+    /* ========== Q&A KNOWLEDGE CARDS ========== */
+    .qa-section { padding: 72px 0; }
+    .qa-scroll {
+      display: flex;
+      gap: 20px;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 16px;
+      scrollbar-width: thin;
+      scrollbar-color: #DDD transparent;
+    }
+    .qa-scroll::-webkit-scrollbar { height: 6px; }
+    .qa-scroll::-webkit-scrollbar-track { background: transparent; }
+    .qa-scroll::-webkit-scrollbar-thumb { background: #DDD; border-radius: 3px; }
+    .qa-card {
+      min-width: 320px;
+      max-width: 360px;
+      background: #fff;
+      border: 1px solid #E5E7EB;
+      border-radius: 16px;
+      padding: 28px 24px;
+      scroll-snap-align: start;
+      flex-shrink: 0;
+      transition: all 0.25s;
+      position: relative;
+    }
+    .qa-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #522ED3, #7C3AED);
+      border-radius: 16px 16px 0 0;
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+    .qa-card:hover {
+      box-shadow: 0 12px 40px rgba(0,0,0,0.08);
+      transform: translateY(-4px);
+      border-color: #D1C4E9;
+    }
+    .qa-card:hover::before { opacity: 1; }
+    .qa-card h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #1A1A2E;
+      line-height: 1.4;
+    }
+    .qa-card ul { display: flex; flex-direction: column; gap: 10px; }
+    .qa-card ul li {
+      font-size: 0.92rem;
+      color: #4B5563;
+      line-height: 1.55;
+      padding-left: 18px;
+      position: relative;
+    }
+    .qa-card ul li::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 8px;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #522ED3;
+    }
+    .qa-card ul li strong { color: #1A1A2E; }
+    .qa-card .card-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 18px;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #522ED3;
+      transition: gap 0.2s;
+    }
+    .qa-card .card-cta:hover { gap: 8px; }
+
+    /* ========== STEPS ========== */
+    .steps-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      max-width: 700px;
+    }
+    .step-item {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      padding: 24px 0;
+      position: relative;
+    }
+    .step-item:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      left: 23px;
+      top: 72px;
+      bottom: 0;
+      width: 2px;
+      background: #E5E7EB;
+    }
+    .step-num {
+      width: 48px; height: 48px;
+      border-radius: 50%;
+      background: #522ED3;
+      color: #fff;
+      font-size: 1.2rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+    .step-body h3 {
+      font-size: 1.1rem;
+      font-weight: 700;
+      margin-bottom: 6px;
+      color: #1A1A2E;
+    }
+    .step-body p {
+      font-size: 0.95rem;
+      color: #6B7280;
+      line-height: 1.65;
+    }
+
+    /* ========== COMPARISON TABLE ========== */
+    .comparison-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid #E5E7EB;
+      background: #fff;
+    }
+    .comparison-table thead th {
+      background: #1A1A2E;
+      color: #fff;
+      font-size: 0.88rem;
+      font-weight: 600;
+      padding: 16px 20px;
+      text-align: left;
+    }
+    .comparison-table tbody td {
+      padding: 14px 20px;
+      font-size: 0.92rem;
+      border-bottom: 1px solid #F3F4F6;
+      color: #4B5563;
+    }
+    .comparison-table tbody tr:last-child td { border-bottom: none; }
+    .comparison-table tbody tr:hover { background: #F8F7FF; }
+    .comparison-table tbody td:first-child { font-weight: 600; color: #1A1A2E; }
+
+    /* ========== EXPERT TIP ========== */
+    .expert-tip-box {
+      background: linear-gradient(135deg, #F8F7FF 0%, #EDE9FE 100%);
+      border: 1px solid #D1C4E9;
+      border-radius: 20px;
+      padding: 36px;
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+      position: relative;
+      overflow: hidden;
+    }
+    .expert-tip-box::before {
+      content: '';
+      position: absolute;
+      top: -20px; right: -20px;
+      width: 120px; height: 120px;
+      background: radial-gradient(circle, rgba(82,46,211,0.08) 0%, transparent 70%);
+    }
+    .expert-tip-box .tip-icon {
+      font-size: 1.5rem;
+      flex-shrink: 0;
+      width: 52px; height: 52px;
+      background: #fff;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(82,46,211,0.1);
+    }
+    .expert-tip-box .tip-content blockquote {
+      font-size: 1.05rem;
+      color: #374151;
+      line-height: 1.75;
+      margin-bottom: 14px;
+      font-style: italic;
+    }
+    .expert-tip-box .tip-author {
+      font-size: 0.85rem;
+      color: #6B7280;
+    }
+    .expert-tip-box .tip-author strong { color: #1A1A2E; }
+
+    /* ========== FAQ ACCORDION ========== */
+    .faq-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-width: 800px;
+    }
+    .faq-item {
+      border: 1px solid #E5E7EB;
+      border-radius: 14px;
+      overflow: hidden;
+      background: #fff;
+      transition: all 0.25s;
+    }
+    .faq-item:hover { border-color: #D1C4E9; box-shadow: 0 2px 12px rgba(82,46,211,0.06); }
+    .faq-question {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 18px 24px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #1A1A2E;
+      background: none;
+      border: none;
+      width: 100%;
+      text-align: left;
+      transition: background 0.2s;
+    }
+    .faq-question:hover { background: #FAFAFA; }
+    .faq-toggle {
+      font-size: 1.4rem;
+      color: #522ED3;
+      font-weight: 300;
+      transition: transform 0.3s;
+      flex-shrink: 0;
+      margin-left: 16px;
+      width: 28px; height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 50%;
+      background: #F3F0FF;
+    }
+    .faq-answer {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.35s ease, padding 0.35s ease;
+      padding: 0 24px;
+    }
+    .faq-answer.open {
+      max-height: 600px;
+      padding: 0 24px 20px;
+    }
+    .faq-answer p {
+      font-size: 0.95rem;
+      color: #6B7280;
+      line-height: 1.75;
+    }
+    .faq-verified {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 24px;
+      padding: 14px 20px;
+      background: #F0FDF4;
+      border: 1px solid #BBF7D0;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      color: #166534;
+    }
+    .faq-verified .check-icon {
+      width: 24px; height: 24px;
+      background: #22C55E;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+      font-size: 0.75rem;
+      flex-shrink: 0;
+    }
+
+    /* ========== CONTENT BLOCK ========== */
+    .content-block h2 {
+      font-size: 1.6rem;
+      font-weight: 800;
+      margin-bottom: 16px;
+      color: #1A1A2E;
+      letter-spacing: -0.01em;
+    }
+    .content-block h3 {
+      font-size: 1.2rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      color: #1A1A2E;
+    }
+    .content-block p {
+      font-size: 1rem;
+      color: #4B5563;
+      line-height: 1.8;
+      margin-bottom: 16px;
+    }
+    .content-block a {
+      color: #522ED3;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+      text-decoration-thickness: 1px;
+    }
+    .content-block a:hover { color: #4020B8; text-decoration-thickness: 2px; }
+    .content-block ul, .content-block ol {
+      margin-bottom: 16px;
+      padding-left: 0;
+    }
+    .content-block ul li, .content-block ol li {
+      font-size: 0.95rem;
+      color: #4B5563;
+      line-height: 1.7;
+      padding-left: 22px;
+      position: relative;
+      margin-bottom: 8px;
+    }
+    .content-block ul li::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 10px;
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: #522ED3;
+    }
+    .content-block strong { color: #1A1A2E; }
+
+    /* ========== BULLET LIST ========== */
+    .bullet-list { max-width: 750px; }
+    .bullet-list li {
+      font-size: 1rem;
+      color: #4B5563;
+      line-height: 1.7;
+      padding: 14px 0 14px 28px;
+      position: relative;
+      border-bottom: 1px solid #F3F4F6;
+    }
+    .bullet-list li:last-child { border-bottom: none; }
+    .bullet-list li::before {
+      content: '';
+      position: absolute;
+      left: 0; top: 20px;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #10B981;
+    }
+    .bullet-list li strong { color: #1A1A2E; }
+
+    /* ========== CTA BANNER ========== */
+    .cta-banner {
+      background: linear-gradient(135deg, #522ED3 0%, #7C3AED 50%, #A78BFA 100%);
+      border-radius: 20px;
+      padding: 56px 48px;
+      text-align: center;
+      color: #fff;
+      position: relative;
+      overflow: hidden;
+    }
+    .cta-banner::before {
+      content: '';
+      position: absolute;
+      top: -50%; right: -20%;
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+    }
+    .cta-banner::after {
+      content: '';
+      position: absolute;
+      bottom: -30%; left: -10%;
+      width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(255,255,255,0.06) 0%, transparent 70%);
+    }
+    .cta-banner h2 {
+      font-size: 2rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+      position: relative;
+      z-index: 1;
+      letter-spacing: -0.02em;
+    }
+    .cta-banner p {
+      font-size: 1.05rem;
+      color: rgba(255,255,255,0.85);
+      margin-bottom: 32px;
+      max-width: 500px;
+      margin-left: auto;
+      margin-right: auto;
+      position: relative;
+      z-index: 1;
+    }
+    .cta-banner .cta-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: #fff;
+      color: #522ED3;
+      font-weight: 700;
+      font-size: 1.05rem;
+      padding: 16px 40px;
+      border-radius: 14px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-decoration: none;
+      border: none;
+      position: relative;
+      z-index: 1;
+    }
+    .cta-banner .cta-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 32px rgba(0,0,0,0.2);
+    }
+
+    /* ========== RELATED ARTICLES ========== */
+    .articles-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .article-card {
+      background: #fff;
+      border: 1px solid #E5E7EB;
+      border-radius: 16px;
+      padding: 28px 24px;
+      transition: all 0.25s;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+    .article-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 24px; right: 24px;
+      height: 3px;
+      background: linear-gradient(90deg, #522ED3, #7C3AED);
+      border-radius: 0 0 16px 16px;
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+    .article-card:hover {
+      box-shadow: 0 12px 40px rgba(0,0,0,0.08);
+      transform: translateY(-4px);
+      border-color: #D1C4E9;
+    }
+    .article-card:hover::after { opacity: 1; }
+    .article-card h3 {
+      font-size: 1.05rem;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: #1A1A2E;
+      line-height: 1.4;
+    }
+    .article-card p {
+      font-size: 0.88rem;
+      color: #6B7280;
+      line-height: 1.6;
+      flex: 1;
+      margin-bottom: 14px;
+    }
+    .article-card .read-link {
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: #522ED3;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: gap 0.2s;
+    }
+    .article-card .read-link:hover { gap: 8px; }
+
+    /* ========== DATA TABLE ========== */
+    .data-table-wrap {
+      overflow-x: auto;
+      border-radius: 16px;
+      border: 1px solid #E5E7EB;
+      background: #fff;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 500px;
+    }
+    .data-table thead th {
+      background: #1A1A2E;
+      color: #fff;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 14px 20px;
+      text-align: left;
+      white-space: nowrap;
+    }
+    .data-table tbody td {
+      padding: 13px 20px;
+      font-size: 0.92rem;
+      border-bottom: 1px solid #F3F4F6;
+      color: #4B5563;
+    }
+    .data-table tbody tr:last-child td { border-bottom: none; }
+    .data-table tbody tr:hover { background: #F8F7FF; }
+
+    /* ========== FOOTER ========== */
+    .page-footer {
+      background: #1A1A2E;
+      color: rgba(255,255,255,0.7);
+      padding: 56px 0 32px;
+      margin-top: 0;
+    }
+    .footer-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 24px;
+      margin-bottom: 28px;
+    }
+    .footer-grid a {
+      font-size: 0.88rem;
+      color: rgba(255,255,255,0.55);
+      padding: 6px 14px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+    .footer-grid a:hover { color: #fff; background: rgba(255,255,255,0.1); }
+    .footer-copy {
+      font-size: 0.8rem;
+      color: rgba(255,255,255,0.3);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding-top: 20px;
+    }
+
+    /* ========== STICKY MOBILE CTA ========== */
+    .sticky-mobile-cta {
+      display: none;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      background: #fff;
+      border-top: 1px solid #E5E7EB;
+      padding: 12px 20px;
+      z-index: 99;
+      box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+    }
+    .sticky-mobile-cta a {
+      display: block;
+      text-align: center;
+      background: #522ED3;
+      color: #fff;
+      font-weight: 700;
+      font-size: 1rem;
+      padding: 14px;
+      border-radius: 12px;
+      text-decoration: none;
+    }
+
+    /* ========== RESPONSIVE ========== */
+    @media (max-width: 768px) {
+      .hero h1 { font-size: 2.2rem; }
+      .hero .subtitle { font-size: 1rem; }
+      .section-title { font-size: 1.5rem; }
+      .section-pad { padding: 48px 0; }
+      .qa-card { min-width: 280px; }
+      .cta-banner { padding: 36px 24px; border-radius: 16px; }
+      .cta-banner h2 { font-size: 1.5rem; }
+      .expert-tip-box { flex-direction: column; padding: 24px; }
+      .step-item { gap: 14px; }
+      .step-num { width: 40px; height: 40px; font-size: 1rem; }
+      .articles-grid { grid-template-columns: 1fr; }
+      .hero-cta-box { flex-direction: column; }
+      .hero-cta-box .hero-btn { width: 100%; text-align: center; }
+      .trust-row { justify-content: flex-start; gap: 12px 24px; }
+      .sticky-mobile-cta { display: block; }
+      body { padding-bottom: 72px; }
+      .comparison-table thead th,
+      .comparison-table tbody td { padding: 12px 14px; font-size: 0.85rem; }
+    }
+
+    /* ========== ANIMATIONS ========== */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-in {
+      animation: fadeInUp 0.5s ease forwards;
+      opacity: 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========== STICKY NAV ========== -->
+  <nav class="sticky-nav">
+    <div class="container nav-inner">
+      <div class="nav-logo">ACKO<span>.</span></div>
+      <a href="#cta-section" class="nav-cta">Get a FREE quote &rarr;</a>
+    </div>
+  </nav>
+
+  <!-- ========== HERO ========== -->
+  <section class="hero">
+    <div class="container">
+      {% if breadcrumb %}
+      <nav class="breadcrumb" aria-label="Breadcrumb">
+        {% for crumb in breadcrumb %}
+          {% if not loop.last %}
+            <a href="{{ crumb.url | default('#') }}">{{ crumb.text }}</a><span class="sep">/</span>
+          {% else %}
+            <span style="color: rgba(255,255,255,0.9);">{{ crumb.text }}</span>
+          {% endif %}
+        {% endfor %}
+      </nav>
+      {% endif %}
+
+      {% if product_label %}
+      <div class="product-label">{{ product_label }}</div>
+      {% endif %}
+
+      <h1>{{ h1 | default(page_title) }}</h1>
+
+      {% if subtitle %}
+      <p class="subtitle">{{ subtitle }}</p>
+      {% endif %}
+
+      <div class="hero-cta-box">
+        <input type="text" placeholder="Enter your registration number" aria-label="Registration number">
+        <button class="hero-btn">Check prices</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== TRUST STRIP ========== -->
+  <section class="trust-strip">
+    <div class="container">
+      <div class="trust-row">
+        <div class="trust-badge">
+          <div class="trust-icon">&#9989;</div>
+          <span>Trusted by <strong>5 Cr+</strong> Indians</span>
+        </div>
+        <div class="trust-badge">
+          <div class="trust-icon">&#127942;</div>
+          <span><strong>Best direct insurer</strong> 2025</span>
+        </div>
+        <div class="trust-badge">
+          <div class="trust-icon">&#128241;</div>
+          <span>India's <strong>#1 insurance app</strong></span>
+        </div>
+        <div class="trust-badge">
+          <div class="trust-icon">&#128274;</div>
+          <span>IRDAI Licensed &mdash; Reg. No. 158</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== AUTHOR BAR ========== -->
+  {% if author or reviewer %}
+  <section class="author-bar">
+    <div class="container">
+      <div class="inner">
+        {% if author %}
+          <span class="label">Written by</span>
+          <span><span class="name">{{ author.name }}</span>{% if author.title %}, {{ author.title }}{% endif %}</span>
+        {% endif %}
+        {% if reviewer %}
+          <span class="label">Reviewed by</span>
+          <span><span class="name">{{ reviewer.name }}</span>{% if reviewer.title %}, {{ reviewer.title }}{% endif %}</span>
+        {% endif %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ========== TABLE OF CONTENTS ========== -->
+  {% set toc_sections = [] %}
+  {% for section in sections %}
+    {% if section.heading %}
+      {% if toc_sections.append({"heading": section.heading, "idx": loop.index}) %}{% endif %}
+    {% endif %}
+  {% endfor %}
+  {% if toc_sections | length > 2 %}
+  <div class="toc-bar">
+    <div class="container">
+      <div class="toc-inner">
+        {% for item in toc_sections %}
+        <a href="#section-{{ item.idx }}" class="toc-link">{{ item.heading | truncate(40, True, '...') }}</a>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ========== DYNAMIC SECTIONS ========== -->
+  {% for section in sections %}
+
+    {# ---------- HERO INTRO ---------- #}
+    {% if section.type == 'hero' %}
+    <section class="hero-intro-section" id="section-{{ loop.index }}">
+      <div class="container">
+        {% if section.heading %}
+        <h2 class="section-title">{{ section.heading }}</h2>
+        {% endif %}
+        <p class="hero-intro-text">{{ section.content.text }}</p>
+      </div>
+    </section>
+
+    {# ---------- Q&A CARDS ---------- #}
+    {% elif section.type == 'qa' %}
+    <section class="qa-section {% if loop.index is odd %}section-alt{% endif %}" id="section-{{ loop.index }}">
+      <div class="container">
+        {% if section.heading %}
+        <h2 class="section-title">{{ section.heading }}</h2>
+        {% endif %}
+        <div class="qa-scroll">
+          {% for card in section.content.cards %}
+          <div class="qa-card">
+            <h3>{{ card.question }}</h3>
+            <ul>
+              {% for ans in card.answers %}
+              <li><strong>{{ ans.bold }}</strong> &mdash; {{ ans.detail }}</li>
+              {% endfor %}
+            </ul>
+            {% if card.cta_text and card.cta_url %}
+            <a href="{{ card.cta_url }}" class="card-cta">{{ card.cta_text }} &rarr;</a>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    {# ---------- STEPS ---------- #}
+    {% elif section.type == 'steps' %}
+    <section class="section-pad {% if loop.index is odd %}section-alt{% endif %}" id="section-{{ loop.index }}">
+      <div class="container">
+        {% if section.heading %}
+        <h2 class="section-title">{{ section.heading }}</h2>
+        {% endif %}
+        <div class="steps-list">
+          {% for step in section.content.steps %}
+          <div class="step-item">
+            <div class="step-num">{{ loop.index }}</div>
+            <div class="step-body">
+              <h3>{{ step.title }}</h3>
+              <p>{{ step.description }}</p>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    {# ---------- COMPARISON ---------- #}
+    {% elif section.type == 'comparison' %}
+    <section class="section-pad {% if loop.index is odd %}section-alt{% endif %}" id="section-{{ loop.index }}">
+      <div class="container">
+        {% if section.heading %}
+        <h2 class="section-title">{{ section.heading }}</h2>
+        {% endif %}
+        <div style="overflow-x:auto;">
+          <table class="comparison-table">
+            <thead>
+              <tr>
+                <th>Feature</th>
+                <th>{{ section.content.header_a | default('Option A') }}</th>
+                <th>{{ section.content.header_b | default('Option B') }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in section.content.rows %}
+              <tr>
+                <td>{{ row.feature }}</td>
+                <td>{{ row.option_a }}</td>
+                <td>{{ row.option_b }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    {# ---------- EXPERT TIP ---------- #}
+    {% elif section.type == 'expert_tip' %}
+    <section class="section-pad" id="section-{{ loop.index }}">
+      <div class="container">
+        {% if section.heading %}
+        <h2 class="section-title">{{ section.heading }}</h2>
+        {% endif %}
+        <div class="expert-tip-box">
+          <div class="tip-icon">&#128161;</div>
+          <div class="tip-content">
+            <blockquote>&ldquo;{{ section.content.quote }}&rdquo;</blockquote>
+            <div class="tip-author">
+              <strong>{{ section.content.name }}</strong>{% if section.content.title %}, {{ section.content.title }}{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    {# ---------- FAQ ACCORDION ---------- #}
+    {% elif section.type == 'faq' %}
+    <section class="section-pad section-alt" id="section-{{ loop.index }}">
+      <div class="container">
+        {% if section.heading %}
+        <h2 class="section-title">{{ section.heading }}</h2>
+        {% endif %}
+        <div class="faq-list">
+          {% for item in section.content['items'] %}
+          <div class="faq-item">
+            <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+              <span>{{ item.question }}</span>
+              <span class="faq-toggle">+</span>
+            </button>
+            <div class="faq-answer">
+              <p>{{ item.answer }}</p>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="faq-verified">
+          <div class="check-icon">&#10003;</div>
+          <span>Answers verified by ACKO insurance advisory team &mdash; IRDAI Certified</span>
+        </div>
+      </div>
+    </section>
+
+    {# ---------- CONTENT BLOCK ---------- #}
+    {% elif section.type == 'content_block' %}
+    <section class="section-pad {% if loop.index is odd %}section-alt{% endif %}" id="section-{{ loop.index }}">
+      <div class="container content-block">
+        {% if section.heading %}
+        <h2 class="section-title">{{ section.heading }}</h2>
+        {% endif %}
+        {{ section.content.html | safe }}
+      </div>
+    </section>
+
+    {# ---------- BULLET LIST ---------- #}
+    {% elif section.type == 'bullet_list' %}
+    <section class="section-pad {% if loop.index is odd %}section-alt{% endif %}" id="section-{{ loop.index }}">
+      <div class="container">
+        {% if section.heading %}
+        <h2 class="section-title">{{ section.heading }}</h2>
+        {% endif %}
+        <ul class="bullet-list">
+          {% for item in section.content['items'] %}
+          <li>{{ item | safe }}</li>
+          {% endfor %}
+        </ul>
+      </div>
+    </section>
+
+    {# ---------- CTA BANNER ---------- #}
+    {% elif section.type == 'cta' %}
+    <section class="section-pad" id="cta-section">
+      <div class="container">
+        <div class="cta-banner">
+          <h2>{{ section.content.heading }}</h2>
+          <p>{{ section.content.description }}</p>
+          <a href="{{ section.content.button_url | default('#') }}" class="cta-btn">{{ section.content.button_text }} &rarr;</a>
+        </div>
+      </div>
+    </section>
+
+    {# ---------- RELATED ARTICLES ---------- #}
+    {% elif section.type == 'related_articles' %}
+    <section class="section-pad section-alt" id="section-{{ loop.index }}">
+      <div class="container">
+        {% if section.heading %}
+        <h2 class="section-title">{{ section.heading }}</h2>
+        {% endif %}
+        <div class="articles-grid">
+          {% for article in section.content.articles %}
+          <a href="{{ article.url }}" class="article-card">
+            <h3>{{ article.title }}</h3>
+            <p>{{ article.description }}</p>
+            <span class="read-link">Read full guide &rarr;</span>
+          </a>
+          {% endfor %}
+        </div>
+      </div>
+    </section>
+
+    {# ---------- DATA TABLE ---------- #}
+    {% elif section.type == 'table' %}
+    <section class="section-pad {% if loop.index is odd %}section-alt{% endif %}" id="section-{{ loop.index }}">
+      <div class="container">
+        {% if section.heading %}
+        <h2 class="section-title">{{ section.heading }}</h2>
+        {% endif %}
+        <div class="data-table-wrap">
+          <table class="data-table">
+            <thead>
+              <tr>
+                {% for header in section.content.headers %}
+                <th>{{ header }}</th>
+                {% endfor %}
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in section.content.rows %}
+              <tr>
+                {% for cell in row %}
+                <td>{{ cell }}</td>
+                {% endfor %}
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    {% endif %}
+  {% endfor %}
+
+  <!-- ========== FOOTER ========== -->
+  <footer class="page-footer">
+    <div class="container">
+      {% if internal_links_footer %}
+      <div class="footer-grid">
+        {% for link in internal_links_footer %}
+        <a href="{{ link.href }}">{{ link.text }}</a>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div class="footer-copy">
+        &copy; 2026 Acko Technology &amp; Services Pvt Ltd. CIN: U74110KA2016PTC120161 &mdash; IRDAI Reg. No. 158<br>
+        Listed #1 for &ldquo;insurance&rdquo; on the Apple App Store.
+      </div>
+    </div>
+  </footer>
+
+  <!-- ========== STICKY MOBILE CTA ========== -->
+  <div class="sticky-mobile-cta">
+    <a href="#cta-section">Get a FREE quote &rarr;</a>
+  </div>
+
+  <!-- ========== SCRIPTS ========== -->
+  <script>
+    // FAQ toggle
+    function toggleFaq(btn) {
+      var answer = btn.nextElementSibling;
+      var toggle = btn.querySelector('.faq-toggle');
+      var isOpen = answer.classList.contains('open');
+
+      document.querySelectorAll('.faq-answer.open').forEach(function(el) {
+        el.classList.remove('open');
+        el.previousElementSibling.querySelector('.faq-toggle').textContent = '+';
+        el.previousElementSibling.setAttribute('aria-expanded', 'false');
+      });
+
+      if (!isOpen) {
+        answer.classList.add('open');
+        toggle.textContent = '\u2212';
+        btn.setAttribute('aria-expanded', 'true');
+      }
+    }
+
+    // Smooth scroll for TOC links
+    document.querySelectorAll('.toc-link').forEach(function(link) {
+      link.addEventListener('click', function(e) {
+        e.preventDefault();
+        var target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
+    });
+
+    // Scroll-reveal animation
+    var observer = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('animate-in');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.qa-card, .article-card, .step-item, .faq-item, .expert-tip-box').forEach(function(el) {
+      observer.observe(el);
+    });
+
+    // Active TOC link highlighting
+    var tocLinks = document.querySelectorAll('.toc-link');
+    if (tocLinks.length > 0) {
+      var sectionObserver = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            var id = entry.target.getAttribute('id');
+            tocLinks.forEach(function(link) {
+              if (link.getAttribute('href') === '#' + id) {
+                link.style.color = '#522ED3';
+                link.style.borderBottomColor = '#522ED3';
+              } else {
+                link.style.color = '#6B7280';
+                link.style.borderBottomColor = 'transparent';
+              }
+            });
+          }
+        });
+      }, { threshold: 0.3, rootMargin: '-80px 0px -50% 0px' });
+
+      document.querySelectorAll('[id^="section-"]').forEach(function(section) {
+        sectionObserver.observe(section);
+      });
+    }
+  </script>
+
+</body>
+</html>
