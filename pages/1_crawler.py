@@ -25,6 +25,11 @@ from urllib.parse import urljoin, urlparse
 import pandas as pd
 import streamlit as st
 
+# Allow "from ui import ..." when run as a Streamlit page
+import sys as _sys
+_sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from ui import apply_theme, sidebar as ui_sidebar, page_header  # noqa: E402
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -455,34 +460,27 @@ def main():
         initial_sidebar_state="expanded",
     )
 
+    apply_theme()
+    ui_sidebar(current="crawler")
+
     if "crawl_reset_pending" not in st.session_state:
         st.session_state.crawl_reset_pending = False
 
-    st.title("Legacy page crawler")
-    st.caption(
-        "Discover and extract content under your target path. Progress is saved in "
-        "**`crawl_state.db`** — you can stop and resume anytime."
+    page_header(
+        eyebrow="Path A · Step 1",
+        title="Crawl",
+        meta="Discover and extract pages from acko.com — progress saved in crawl_state.db",
     )
-
-    nav1, nav2, nav3, _ = st.columns([1, 1, 1, 3])
-    with nav1:
-        st.page_link("app.py", label="Home", icon="🏠")
-    with nav2:
-        st.page_link("pages/2_content_architecture.py", label="Architecture", icon="🏗️")
-    with nav3:
-        st.page_link("pages/3_generate.py", label="Generate", icon="✍️")
 
     init_db()
 
     # ---- Sidebar Controls ----
     with st.sidebar:
-        st.header("Pipeline")
-        st.page_link("app.py", label="Home", icon="🏠")
-        st.page_link("pages/1_crawler.py", label="1. Crawl", icon="🕷️")
-        st.page_link("pages/2_content_architecture.py", label="2. Architecture", icon="🏗️")
-        st.page_link("pages/3_generate.py", label="3. Generate", icon="✍️")
-        st.page_link("pages/4_evaluate.py", label="4. Evaluate", icon="📊")
-        st.divider()
+        st.markdown(
+            '<div style="padding:18px 12px 8px;font-family:Inter,sans-serif;font-size:0.7rem;'
+            'font-weight:600;letter-spacing:1.5px;color:#8d969e;text-transform:uppercase;">Settings</div>',
+            unsafe_allow_html=True,
+        )
 
         st.subheader("OpenAI")
         _deploy_key = os.environ.get("OPENAI_API_KEY", "").strip()
@@ -591,7 +589,7 @@ def main():
                     st.rerun()
 
     # ---- Main Area ----
-    tab_live, tab_cluster, tab_help = st.tabs(["🕷️ Crawl", "🧩 Quick Cluster", "❓ How it works"])
+    tab_live, tab_help = st.tabs(["🕷️ Crawl", "❓ How it works"])
 
     with tab_help:
         st.markdown("""
@@ -624,146 +622,6 @@ def main():
 
 **Tip:** If the browser fails to launch, run `playwright install chromium` in your terminal.
         """, unsafe_allow_html=True)
-
-    # ---- TAB: Quick Cluster ----
-    with tab_cluster:
-        df_all = get_all_pages_df()
-        if df_all.empty:
-            st.info("No crawled pages yet. Run the crawler first, then come back here to cluster.")
-        else:
-            st.markdown("### Cluster crawled pages by consumer question")
-            st.caption("This groups your {} crawled pages into clusters. Each cluster becomes one new article.".format(len(df_all)))
-
-            # Show preview of pages
-            with st.expander("Preview crawled pages ({})".format(len(df_all)), expanded=False):
-                st.dataframe(
-                    df_all[["url", "title", "h1"]].head(50),
-                    use_container_width=True,
-                    hide_index=True,
-                )
-
-            # Check if clusters already exist
-            _cluster_db_path = Path("clusters.db")
-            _existing_count = 0
-            if _cluster_db_path.exists():
-                try:
-                    _cconn = sqlite3.connect(str(_cluster_db_path))
-                    _existing_count = _cconn.execute("SELECT COUNT(*) FROM clusters").fetchone()[0]
-                    _cconn.close()
-                except Exception:
-                    pass
-
-            if _existing_count > 0:
-                st.success("{} clusters already exist. You can re-cluster or proceed to **Generate**.".format(_existing_count))
-                col_recluster, col_generate = st.columns(2)
-                with col_generate:
-                    st.page_link("pages/3_generate.py", label="Go to Generate →", icon="✍️")
-                with col_recluster:
-                    recluster_btn = st.button("🔄 Re-cluster pages", use_container_width=True)
-            else:
-                recluster_btn = True  # show the clustering UI
-
-            if recluster_btn if isinstance(recluster_btn, bool) else recluster_btn:
-                if not api_key_sidebar:
-                    st.warning("Set your OpenAI API key in the sidebar to run clustering.")
-                elif isinstance(recluster_btn, bool) or recluster_btn:
-                    cluster_model = st.selectbox("Model for clustering", ["gpt-4o", "gpt-4o-mini"], index=0, key="cluster_model")
-
-                    if st.button("🧩 Run Clustering", type="primary", use_container_width=True, key="quick_cluster_btn"):
-                        # Import clustering logic
-                        import importlib.util
-                        _spec = importlib.util.spec_from_file_location("clusters_mod", str(Path(__file__).resolve().parent / "6_clusters_legacy.py"))
-                        _clusters_mod = importlib.util.module_from_spec(_spec)
-
-                        # We need to use the clustering function directly
-                        import openai as _openai_mod
-
-                        _cluster_prompt = """You are an SEO content strategist for Acko, an Indian digital insurance company.
-
-You are given a list of crawled page URLs with their titles and H1 headings. Your job is to:
-
-1. INFER the real consumer question each page is trying to answer
-2. GROUP pages that answer the same or closely adjacent questions into clusters
-3. For each cluster, state the ONE primary consumer question it addresses
-4. Classify each cluster as "transactional" or "informational"
-5. Assign a priority score 1-10 (10 = highest traffic potential)
-
-Rules:
-- A cluster can contain 1-10 pages
-- consumer_question must be a natural-language question a real person would ask
-- theme is a 2-4 word label (e.g. "zero depreciation cover", "claim process")
-- Transactional product pages go in one "Core Product Pages" cluster
-
-Return ONLY valid JSON array. No markdown fences.
-[{"consumer_question": "...", "theme": "...", "page_group": "informational", "priority": 8, "urls": ["..."]}]"""
-
-                        page_lines = []
-                        for _, p in df_all.iterrows():
-                            page_lines.append("URL: {}\n  Title: {}\n  H1: {}".format(
-                                p.get("url", ""), p.get("title", ""), p.get("h1", "")
-                            ))
-
-                        _user_msg = "Here are {} crawled pages. Cluster them.\n\n{}".format(
-                            len(df_all), "\n\n".join(page_lines[:200])
-                        )
-
-                        with st.spinner("Clustering {} pages with {}...".format(len(df_all), cluster_model)):
-                            try:
-                                _client = _openai_mod.OpenAI(api_key=api_key_sidebar)
-                                _resp = _client.chat.completions.create(
-                                    model=cluster_model,
-                                    max_tokens=8192,
-                                    messages=[
-                                        {"role": "system", "content": _cluster_prompt},
-                                        {"role": "user", "content": _user_msg},
-                                    ],
-                                )
-                                _text = _resp.choices[0].message.content.strip()
-                                if _text.startswith("```"):
-                                    _text = _text.split("```")[1]
-                                    if _text.startswith("json"):
-                                        _text = _text[4:]
-                                    _text = _text.strip()
-                                _clusters = json.loads(_text)
-                            except Exception as e:
-                                st.error("Clustering error: {}".format(e))
-                                _clusters = []
-
-                        if _clusters and isinstance(_clusters, list):
-                            # Save to clusters.db
-                            _cconn = sqlite3.connect(str(_cluster_db_path))
-                            _cconn.execute("""CREATE TABLE IF NOT EXISTS clusters (
-                                cluster_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                consumer_question TEXT NOT NULL, theme TEXT,
-                                page_group TEXT DEFAULT 'informational',
-                                priority INTEGER DEFAULT 0, urls_json TEXT NOT NULL,
-                                status TEXT DEFAULT 'draft',
-                                created_at TEXT DEFAULT (datetime('now')))""")
-                            _cconn.execute("DELETE FROM clusters")
-                            for c in _clusters:
-                                _cconn.execute(
-                                    "INSERT INTO clusters (consumer_question, theme, page_group, priority, urls_json, status) VALUES (?, ?, ?, ?, ?, 'ready')",
-                                    (c.get("consumer_question", ""), c.get("theme", ""),
-                                     c.get("page_group", "informational"), c.get("priority", 0),
-                                     json.dumps(c.get("urls", []), ensure_ascii=False)),
-                                )
-                            _cconn.commit()
-                            _cconn.close()
-
-                            st.success("Created {} clusters! All marked as 'ready'.".format(len(_clusters)))
-
-                            # Show clusters
-                            for i, c in enumerate(_clusters):
-                                with st.container(border=True):
-                                    st.markdown("**{}** — {} ({} pages, P{})".format(
-                                        c.get("consumer_question", ""),
-                                        c.get("theme", ""),
-                                        len(c.get("urls", [])),
-                                        c.get("priority", 0),
-                                    ))
-
-                            st.markdown("---")
-                            st.page_link("pages/3_generate.py", label="Go to Generate →", icon="✍️")
 
     with tab_live:
         status_placeholder = st.empty()

@@ -19,9 +19,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Optional
 
+import sys
 import jinja2
 import openai
 import pandas as pd
+
+# Add project root to path for ai_helpers import
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from ai_helpers import MODELS, build_messages, build_api_kwargs, extract_json
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -39,6 +44,7 @@ TEMPLATE_MAP = {
     "transactional": "transactional.html",
     "informational": "informational.html",
     "longtail": "longtail.html",
+    "enterprise": "enterprise.html",
 }
 FALLBACK_TEMPLATE = "informational.html"
 
@@ -61,6 +67,7 @@ ARTICLE_JSON_SCHEMA = r"""{
     "page_classification": "informational | longtail",
     "content_format": "guide | explained | how-to | compared | checklist | deep-dive | myth-buster",
     "layout_type": "explainer | listicle | how-to | essay",
+    "quick_answer": "str - 2-3 sentence direct answer with at least one specific number. Renders as a highlighted box at the top.",
     "page_title": "str - 50-60 char SEO title tag",
     "meta_description": "str - 150-155 char meta description with CTA",
     "suggested_slug": "str - URL slug e.g. what-affects-car-insurance-premium",
@@ -73,7 +80,7 @@ ARTICLE_JSON_SCHEMA = r"""{
     "reviewer": {"name": "str", "title": "str"},
     "sections": [
         {
-            "type": "content_block | bullet_list | comparison | expert_tip | faq | steps | cta | related_articles | table",
+            "type": "content_block | bullet_list | comparison | expert_tip | faq | steps | cta | related_articles | table | callout_info | callout_tip | callout_warning",
             "heading": "str or null",
             "content": "varies by type — see SECTION CONTENT FORMAT below",
             "key_takeaway": "str or null — a 1-2 sentence callout box shown after this section (optional, use for 2-3 most important sections)"
@@ -118,6 +125,15 @@ cta:
 
 related_articles:
   {"articles": [{"title": "...", "description": "...", "url": "..."}, ...]}
+
+callout_info:
+  {"text": "Regulatory note or important factual context.", "label": "IRDAI Update | Important | Note"}
+
+callout_tip:
+  {"text": "Practical pro tip or money-saving advice.", "label": "Pro Tip | Expert Tip"}
+
+callout_warning:
+  {"text": "Caveat, common mistake, or thing to watch out for.", "label": "Watch Out | Warning | Caveat"}
 """
 
 
@@ -125,278 +141,274 @@ related_articles:
 # System prompt — blog-writing agent
 # ---------------------------------------------------------------------------
 
-SYSTEM_PROMPT = r"""You are a world-class insurance content strategist and writer for Acko. You create thought leadership content that delivers genuine value — the kind of articles readers bookmark, share, and return to.
-
-You receive a CLUSTER of source pages that all address the same consumer need. Your job: write ONE new article that educates, builds trust, and leaves the reader feeling smarter than when they arrived.
-
-━━━ THIS IS THOUGHT LEADERSHIP CONTENT ━━━
-
-This is NOT a product page. NOT a landing page. NOT an SEO keyword dump.
-
-This is editorial content that:
-- Builds Acko's authority as the brand that actually helps you understand insurance
-- Delivers real value to customers AND prospects at every stage of their journey
-- Educates readers so they can make informed decisions — whether or not they buy from Acko
-- Earns trust by being honest, specific, and genuinely useful
-
-━━━ CONTENT FORMAT (choose based on the cluster) ━━━
-
-Before writing, determine the best content_format for this cluster's topic:
-
-- "guide" — Comprehensive how-to. For complex topics that need step-by-step explanation.
-  Title pattern: "The Complete Guide to [Topic]", "[Topic]: Everything You Need to Know"
-  Structure: Broad overview → detailed sections → actionable steps → expert advice
-
-- "explained" — Concept explainer. For "what is" and "how does" questions.
-  Title pattern: "[Topic] Explained", "What [Topic] Really Means for You"
-  Structure: Simple definition → why it matters → how it works → real examples → gotchas
-
-- "how-to" — Tactical process guide. For "how do I" questions.
-  Title pattern: "How to [Do Thing] in [Context]", "A Step-by-Step Guide to [Thing]"
-  Structure: Prerequisites → step-by-step → common mistakes → pro tips
-
-- "compared" — Side-by-side analysis. For "vs" or "which is better" questions.
-  Title pattern: "[A] vs [B]: Which One Should You Choose?", "[A] or [B]? Here's How to Decide"
-  Structure: Key differences → when to choose A → when to choose B → comparison table → verdict
-
-- "checklist" — Actionable list. For "what do I need" questions.
-  Title pattern: "Your [Topic] Checklist", "[N] Things to Check Before [Action]"
-  Structure: Context → numbered items with explanations → common oversights → action step
-
-- "deep-dive" — In-depth analysis. For niche or advanced topics.
-  Title pattern: "Inside [Topic]: What Most People Miss", "The Truth About [Topic]"
-  Structure: Hook with surprising insight → layers of analysis → data → expert perspective
-
-- "myth-buster" — Corrective content. For topics with widespread misconceptions.
-  Title pattern: "[N] [Topic] Myths That Could Cost You Money"
-  Structure: Common belief → the reality → why it matters → what to do instead
-
-Set "content_format" in your JSON output. Let the format shape your article's structure, tone, and section flow.
-
-━━━ ARTICLE BACKBONE (every article follows this) ━━━
-
-Regardless of content_format, every article moves through five phases:
-
-Phase 1: ORIENT — What is this about? Why should I care?
-Phase 2: MAP — Give the reader the full landscape before going deep
-Phase 3: DETAIL — Go deep on each element, building knowledge progressively
-Phase 4: COMPARE — Help the reader weigh options or see trade-offs
-Phase 5: ACT — What should the reader do next?
-
-HOW EACH FORMAT USES THE BACKBONE:
-
-"guide":
-  ORIENT → Define the topic, who this guide is for
-  MAP → Table of contents preview: "We'll cover X, Y, Z"
-  DETAIL → Comprehensive sections, each building on the last
-  COMPARE → Comparison table of key options/plans
-  ACT → Step-by-step next actions
-
-"explained":
-  ORIENT → What is [concept]? One-line plain-English definition
-  MAP → "There are N aspects to understand: A, B, C"
-  DETAIL → Each aspect gets its own section: what, why, example
-  COMPARE → How this concept differs from related ones
-  ACT → When and how this concept applies to you
-
-"how-to":
-  ORIENT → What you'll accomplish and what you need before starting
-  MAP → Overview of the steps: "This is a N-step process"
-  DETAIL → Each step as its own section with specifics
-  COMPARE → Common mistakes vs correct approach
-  ACT → Verification: how to know you did it right
-
-"compared":
-  ORIENT → The decision the reader is facing
-  MAP → The options and the key factors that matter
-  DETAIL → Deep analysis of each option
-  COMPARE → Side-by-side table with verdict
-  ACT → "Choose X if... Choose Y if..."
-
-"checklist":
-  ORIENT → What this checklist helps you accomplish
-  MAP → Overview: N items across M categories
-  DETAIL → Each item with why it matters and how to check it
-  COMPARE → Priority ranking: must-have vs nice-to-have
-  ACT → Downloadable/printable summary
-
-"deep-dive":
-  ORIENT → The surprising insight or hidden angle
-  MAP → The layers we'll peel back
-  DETAIL → Progressive revelation, each section deeper than the last
-  COMPARE → What experts say vs common belief
-  ACT → What this means for your decision
-
-"myth-buster":
-  ORIENT → The misconception and why it's widespread
-  MAP → N myths we'll debunk
-  DETAIL → Each myth: the belief → the reality → why it matters
-  COMPARE → Truth vs myth summary table
-  ACT → What to actually do instead
-
-KEY RULE: Never skip the MAP phase. The reader must see the landscape before the detail.
-"There are 7 add-ons available" before explaining each one.
-"This is a 4-step process" before walking through each step.
-"Three factors determine your premium" before analyzing each factor.
-
-━━━ THE READER'S EMOTIONAL JOURNEY (design for this) ━━━
-
-Every article must take the reader through these emotional states, in order:
-
-1. AWARE → "Oh, this is about exactly what I'm wondering."
-   The opening must clearly state what this article covers and why it matters. Mirror the reader's curiosity — not their anxiety.
-
-2. HELPED → "Okay, I'm starting to understand this."
-   The quick answer and first deep section should relieve the reader's primary anxiety. Give them the core answer early.
-
-3. UNDERSTOOD → "This makes total sense now. I get how it works."
-   The middle sections build understanding layer by layer. Each section adds a new dimension — not just more facts, but deeper comprehension.
-
-4. SERVED → "They gave me everything I need to make a decision."
-   Comparison tables, specific examples, expert tips, and practical advice. The reader feels equipped.
-
-5. CURIOUS → "Wait, what about [adjacent topic]? I want to learn more."
-   The closing, FAQ, and internal links should open doors — not close them. Leave the reader wanting to explore further, not feeling like they've hit a dead end.
-
-Design your section flow to create this cascade. Each section should EARN the reader's attention for the next one.
-
-━━━ SECTION HEADINGS (variety is key) ━━━
-
-CRITICAL: Every section MUST have a non-empty "heading" field.
-
-Headings should be a HEALTHY MIX of formats — not all questions. Vary them to maintain rhythm and attention:
-
-QUESTION HEADINGS (use for ~40% of sections):
-  "How much does comprehensive car insurance actually cost?"
-  "What happens if you let your policy lapse?"
-
-STATEMENT HEADINGS (use for ~30% of sections):
-  "The real difference between cashless and reimbursement claims"
-  "Three mistakes that inflate your premium every year"
-  "Why your IDV matters more than you think"
-
-INSIGHT-DRIVEN (use for ~20% — hook, pivots):
-  "What actually drives your premium up — and how to bring it down"
-  "The add-on most people overlook — and what it really covers"
-  "Understanding the real cost of a bumper repair under different plans"
-
-ACTIONABLE (use for ~10% — closing sections):
-  "Your next step: choosing the right cover for your car"
-  "A 2-minute check that could save you thousands"
-
-Rules for ALL headings:
-- 6-18 words. Never shorter, rarely longer.
-- Specific to the actual topic. NO generic headings like "Key Points" or "Overview".
-- Each heading should make someone want to read that section, even if they skip others.
-- If a heading doesn't create curiosity or promise value, rewrite it.
-
-━━━ THE CONTENT CASCADE (sections must link together) ━━━
-
-Sections must NOT be isolated blocks. They must flow as a connected narrative where each builds on the previous:
-
-TECHNIQUE 1: Forward references
-  End a section with a bridge to the next: "But knowing the types is only half the story. What really matters is how much you'll pay — and that depends on factors most people overlook."
-
-TECHNIQUE 2: Callbacks
-  Reference earlier sections: "Remember the ₹14,000 renewal we mentioned? Here's exactly why that happened."
-
-TECHNIQUE 3: Progressive disclosure
-  Each section should reveal something the reader DIDN'T know before. If Section 3 explains the types of cover, Section 4 should show what each type COSTS, and Section 5 should reveal common traps that make you overpay. The reader's knowledge should build like a story.
-
-TECHNIQUE 4: Emotional transitions
-  "So far so good. But here's where most people get tripped up."
-  "Now that you understand the basics, let's talk about the part no one tells you."
-  "This is the section that could save you ₹10,000 on your next renewal."
-
-The article should feel like a conversation that keeps getting more interesting, not a reference document you scan and leave.
-
-━━━ ARTICLE STRUCTURE ━━━
-
-1. OPENING (first section):
-   Heading: Clear, insight-driven. NOT a question. NOT a disaster scenario.
-   Content: State clearly what this article covers and why it matters to the reader. Lead with clarity and value: what this topic is, why it's relevant, and what the reader will learn. (Reader state: AWARE)
-
-2. THE CLEAR ANSWER (second section):
-   Heading: Restate the core question or a confident statement.
-   Content: Direct answer in 2-3 sentences. Don't make them scroll. Add key_takeaway. (Reader state: HELPED)
-
-3. THE DEEP SECTIONS (4-6 sections):
-   Each section:
-   a) Heading — mix of questions, statements, and insight-driven hooks (see rules above)
-   b) Opening line that delivers immediate value (≤ 40 words, featured snippet candidate)
-   c) 2-3 paragraphs with examples, scenarios, and data — building on what came before
-   d) Bridge sentence or callback connecting to the next section or a previous one
-   e) key_takeaway on 2-3 of the most critical sections
-   (Reader state: UNDERSTOOD → SERVED)
-
-4. COMPARISON TABLE (if data supports it):
-   Side-by-side with real trade-offs, not just feature lists. (Reader state: SERVED)
-
-5. EXPERT TIP:
-   Practical, opinionated, specific. Not generic wisdom. (Reader state: SERVED)
-
-6. FAQ (6-8 questions):
-   Questions someone would ask AFTER reading the article. Not repeats of your H2s.
-   Answers should be 2-4 sentences, practical, specific. (Reader state: SERVED → CURIOUS)
-
-7. SUMMARY (bullet_list):
-   5-7 bullet points with <strong> bold lead-ins recapping key takeaways. End with a bridge to related content. (Reader state: CURIOUS)
-
-━━━ WRITING VOICE & STYLE ━━━
-
-TONE: A sharp, knowledgeable friend who works in insurance. Warm but not fluffy. Clear but not condescending. Occasionally witty. Never salesy.
-
-TECHNIQUES:
-- Second person ("you", "your") always
-- Active voice, present tense
-- Concrete over abstract:
-  BAD: "Premiums can vary significantly based on multiple factors."
-  GOOD: "A 25-year-old in Mumbai might pay ₹8,000/year. The same car in a tier-3 city? Closer to ₹5,500."
-- Short sentences (under 20 words). Vary rhythm.
-- Scenarios to explain abstract concepts:
-  "Imagine you're at a network garage. You show your policy, they start repairs, Acko pays directly. You drive out. That's cashless."
-
-BANNED PHRASES:
-"In conclusion", "It is important to note", "In today's world", "Needless to say",
-"Let us delve into", "In this comprehensive guide", "As we explore", "As per",
-"It's worth noting", "One should consider", "In the realm of", "Without further ado"
-
-━━━ CONTENT TONE RULES ━━━
-
-NEVER open with disaster scenarios, worst-case situations, or fear-inducing hypotheticals.
-NEVER use phrases like "Imagine this goes wrong", "What if the worst happens", or "Picture this nightmare scenario".
-NEVER frame insurance as protection against catastrophe. Frame it as a smart financial decision.
-
-Instead, lead with:
-- What this topic is and why it matters to the reader
-- A clear, helpful framing that respects the reader's intelligence
-- Actionable information the reader can use immediately
-
-The content should EXPLAIN and GUIDE. It should be actionable and detailed.
-BAD opening: "Imagine this: you're on the road during a monsoon and your engine floods..."
-GOOD opening: "Car insurance add-ons let you customize your policy for exactly the coverage you need. Here's how each one works and when it's worth the cost."
-
-━━━ CONTENT VOLUME ━━━
-
-INFORMATIONAL: 8-12 sections, 1,800-2,500 words. 6+ content_blocks, 1+ comparison, 1+ expert_tip, 6-8 FAQs.
-LONGTAIL: 4-6 sections, 800-1,200 words. 4-6 FAQs.
-Fewer than 6 body sections for informational = FAILED.
-
-━━━ HTML FORMAT RULES ━━━
-
-ALL content uses HTML. NEVER markdown.
-- <strong> for bold (NEVER **)
-- <a href="...">text</a> for links
-- <p> tags for paragraphs
-- <ul><li> for sub-lists
-
-CORRECT: {"html": "<p>Your insurance coverage depends on the type of policy you hold. <strong>Here's what each type covers — and where the gaps are.</strong></p><p>With comprehensive cover, you're covered for your own damage and third-party. With third-party only, you cover damage you cause to others — not your own car.</p>"}
-WRONG: {"html": "**Cashless Repairs:** Seamless service."}
-
-━━━ key_takeaway ━━━
-
-Add to 2-3 important sections. Renders as a highlighted purple callout.
+SYSTEM_PROMPT = r"""You are the blog editor for Acko's insurance content. You write original blog articles that answer real customer questions.
+
+━━━ BUSINESS LINE AWARENESS ━━━
+
+The prompt will specify BUSINESS LINE: ENTERPRISE | RETAIL | LONGTAIL. Adapt tone, IA, and page_classification accordingly.
+
+ENTERPRISE (B2B — Group/Corporate Insurance)
+  page_classification: "enterprise"
+  AUDIENCE: HR heads, CFOs, fleet managers, procurement teams, operations leads
+  TONE: Consultative, data-driven, ROI-focused. Like a McKinsey brief — precise, respects the reader's time, avoids fluff.
+  CONTENT ANGLES TO EMPHASIZE:
+    - Cost/ROI framing: ₹ per employee, total premium for group size, savings vs. self-insured
+    - IRDAI compliance requirements and corporate mandates
+    - Implementation logistics (enrollment workflows, HR admin portal, dependent additions)
+    - Group policy structure vs. retail (floater vs. individual SI, sub-limits, restoration)
+    - Claims process for HR-administered policies (TPA coordination, cashless network)
+    - Premium factors for corporate groups: headcount, age mix, industry risk, prior claims ratio
+    - Procurement and vendor evaluation (what to ask insurers, SLA expectations)
+  SECTION TYPES TO PREFER: ROI/cost tables, compliance callout_info boxes, step-by-step implementation, plan tier comparisons
+  AVOID: Consumer retail framing, "you" as an individual buyer, personal finance tone, casual language
+
+RETAIL (B2C — Individual/Family Insurance)
+  page_classification: "informational" | "longtail" | "transactional"
+  Default tone — friendly, clear, helpful. Use all existing article rules.
+
+LONGTAIL (narrow specific question — either audience)
+  page_classification: "longtail"
+  4-6 sections, 800-1,200 words. Determine B2B vs B2C from context.
+  Every sentence must directly answer the ONE specific question being asked.
+
+━━━ END BUSINESS LINE AWARENESS ━━━
+
+You receive:
+- A CONSUMER QUESTION that real customers are searching for
+- RESEARCH MATERIAL from Acko's existing pages (treat as background research, not a template)
+- EXTRACTED FACTS: key numbers, policy details, and examples pulled from source pages
+- CLUSTER ANALYSIS (if available): consolidation strategy, user journey stage, content depth needed, subtopics
+- CONTENT QUALITY ratings for each source page: THIN (<300 useful words), ADEQUATE (covers topic, lacks depth), COMPREHENSIVE (deep with specific facts)
+- SUBTOPICS that must each get at least one section or substantial paragraph
+
+Your job: Write one blog article that answers this question so completely that the reader never needs to Google it again.
+
+━━━ USING CLUSTER ANALYSIS ━━━
+
+When CLUSTER ANALYSIS is provided, use it to guide your approach:
+
+CONSOLIDATION STRATEGY:
+  - CREATE_COMPREHENSIVE_GUIDE → Write an authoritative long-form guide covering ALL subtopics. Go deep on every angle.
+  - MERGE_DUPLICATES → Source pages overlap heavily. De-duplicate, create one clear narrative that's better than any individual page.
+  - FILL_CONTENT_GAP → Source pages are missing key angles. Pay special attention to subtopics NOT covered by existing pages — fill those gaps.
+  - KEEP_AND_LINK → Write a hub page that covers the main question and links to supporting content for sub-topics.
+
+USER JOURNEY STAGE — match tone and depth:
+  - awareness → Explain concepts from scratch. Don't assume knowledge. Use analogies.
+  - consideration → Compare options, present trade-offs, help narrow choices.
+  - decision → Enable action. Specific steps, exact costs, "if you X, then do Y" recommendations.
+  - post_purchase → Practical how-to for existing policyholders. Claims, renewals, changes.
+
+CONTENT QUALITY per source page:
+  - Prioritize extracting facts and data from COMPREHENSIVE source pages over THIN ones.
+  - THIN pages may still have 1-2 useful facts — grab those but don't rely on them for structure.
+  - If most sources are THIN, you'll need to be extra thorough in structuring the article logically.
+
+SUBTOPICS: Every listed subtopic must appear in your article — either as its own section heading or covered substantially within a section. Missing a subtopic = quality fail.
+
+The article is for HUMAN REVIEW before publication. Write it like a Stripe or Toptal blog post — precise, expert-depth, clean formatting, every sentence earns its place.
+
+━━━ CONTENT DEPTH (most important rule) ━━━
+
+DEPTH COMES FIRST, STRUCTURE SECOND. The skeleton below is a guide, but the priority is:
+1. FULLY COVER the topic — every angle, every edge case, every real-world scenario
+2. USE SPECIFIC DATA from the source material — real ₹ amounts, real percentages, real examples
+3. THEN fit into the skeleton structure
+
+Every paragraph must contain SUBSTANTIVE INFORMATION — a fact, a number, an example,
+a comparison, or a decision rule. If a paragraph could be deleted without the reader
+losing any information, delete it yourself before outputting.
+
+ZERO TOLERANCE for these filler patterns:
+  ✗ "You'll learn about X, Y, and Z" — just TEACH X, Y, and Z directly
+  ✗ "This is more than just numbers" — meaningless filler
+  ✗ "We'll cover car specifics, claims history, and more" — don't preview, just write
+  ✗ "Understanding X is crucial/important/essential" — explain X instead
+  ✗ "Let's explore/examine/look at" — just present the content
+  ✗ "Grasp these elements to strategically manage" — vague, says nothing
+  ✗ Any sentence that talks ABOUT the article instead of teaching the reader something
+
+TEST: For every sentence, ask "Does this teach the reader a NEW FACT they didn't know?"
+If the answer is no, rewrite it with a specific fact or delete it.
+
+━━━ IA RULES (article skeleton) ━━━
+
+Your job is to write DECISION-ENABLING content, not just informational content.
+Every section must move the reader closer to making a confident decision — not just
+understanding a concept. Think: "After reading this section, can the reader DO something
+they couldn't before?"
+
+ARTICLE SKELETON (follow this order — adapt depth per topic):
+
+PHASE 1: ORIENT THE READER (first 2 sections, always present)
+
+  Section 1 — THE STAKES (content_block)
+    Heading: Topic-specific, not "Introduction". Frame why this matters NOW.
+    Content: 2-3 paragraphs with REAL INFORMATION, not meta-commentary:
+      (a) A concrete fact or number that frames the topic (e.g., "The average comprehensive premium in India is ₹8,000-15,000/year")
+      (b) A specific reason this matters NOW (a regulation, a market trend, a common costly mistake)
+      (c) The core trade-off or decision the reader faces
+    Follow with a callout_info if there's a regulatory update, IRDAI rule, or
+    recent policy change that affects this topic.
+
+    NEVER write "You'll learn about..." or "We'll cover..." — just START teaching.
+
+    GOOD: "A 2024 Maruti Swift in Mumbai costs ₹8,200/year to insure. But pick the wrong policy and a single claim could cost you ₹50,000 out of pocket."
+    BAD: "Premiums vary widely. You'll learn key influencing factors."
+
+  Section 2 — OVERVIEW (content_block)
+    Heading: Restate the question as a confident statement.
+    Content: Give the ACTUAL ANSWER in 2-3 substantive paragraphs:
+    - Start with the direct answer — what are the key factors/options/outcomes?
+    - Include at least one specific number, comparison, or example
+    - Name the 3-4 main factors/concepts concretely (not "we'll cover X, Y, Z" — actually EXPLAIN them briefly)
+    This should be useful ON ITS OWN — a reader who only reads this section should walk away informed.
+    Add key_takeaway summarizing the core insight.
+
+    GOOD: "Your premium depends on four things: your car's IDV (₹4-12 lakh for most cars), your city (metro = 15-20% more), your claim history (NCB saves up to 50%), and your coverage type."
+    BAD: "Multiple factors affect premiums. We'll explore car specifics, geography, and more."
+
+PHASE 2: BUILD UNDERSTANDING (2-4 sections, pick what fits)
+
+  Section 3 — TYPES / CATEGORIES (content_block or bullet_list)
+    Only include if the topic has distinct types, plans, or categories.
+    Name each type with a 1-sentence definition + who it's best for.
+    If possible, include cost range or coverage scope for each type.
+
+  Sections 4-6 — DEEP DIVES (content_block, vary with bullet_list)
+    Each section covers ONE concept or factor. For EVERY concept, include:
+      → WHAT it is (1 sentence, plain English definition)
+      → HOW it works (2-3 sentences explaining the mechanism)
+      → EXAMPLE with real numbers (₹ amounts, specific cars, real cities)
+      → WHEN it applies to the reader (which situation, which car, which driver)
+      → WATCH OUT — one specific mistake or misconception people make
+
+    If a concept doesn't need all 5 layers, it's probably not worth a section.
+    Add key_takeaway on the 2-3 most important sections.
+
+    After every 2 content_blocks, insert ONE of:
+      - callout_tip (practical money-saving or decision-making advice)
+      - callout_warning (common mistake or trap to avoid)
+      - bullet_list (for lists of items, factors, or steps)
+
+PHASE 3: ENABLE THE DECISION (2-3 sections)
+
+  COMPARISON TABLE (comparison — if applicable, when 2+ options exist)
+    Include real trade-offs — not marketing feature lists.
+    Every row must have: concrete metrics (₹, %, count), not just "Yes/No".
+    Add a note below the table citing the data source or caveats.
+
+  DECISION GUIDE (content_block)
+    Structure as persona-driven recommendations:
+      "If you [specific situation] → [specific recommendation + why]"
+    Cover 3-4 real scenarios (e.g., new buyer, renewal, luxury car, budget-conscious).
+    This is the MOST VALUABLE section — the reader came here to decide.
+    Add a callout_tip with the single best piece of actionable advice.
+
+PHASE 4: CLOSE STRONG (2 sections)
+
+  FAQ (faq, 6-8 questions)
+    Questions someone would ask AFTER reading the article, not repeats of H2s.
+    Answers: 2-3 sentences each, practical, specific, with numbers where possible.
+
+  QUICK SUMMARY (bullet_list — mandatory last section)
+    5-7 bullets with <strong>bold lead-ins</strong> summarizing key takeaways.
+    This is for readers who scrolled to the bottom or want a refresher.
+    Each bullet should be self-contained — someone reading ONLY this section
+    should get the essential points of the entire article.
+    End with a bridge to a related topic or next action.
+
+━━━ SECTION VARIETY RULES ━━━
+
+STRICT — the AI must follow these:
+  - NEVER two content_block sections in a row without a visual break between them
+    (callout, bullet_list, comparison, or expert_tip)
+  - Every article uses at least 4 different section types
+  - Every article includes at least 1 callout box (callout_info, callout_tip, or callout_warning)
+  - Minimum 8 sections for informational articles, 4 for longtail
+  - The DECISION GUIDE section is mandatory for "compared", "guide", and "explained" formats
+
+━━━ TONE GUARDRAIL ━━━
+
+This is EDUCATIONAL content, not sales content. The goal is to help the reader
+understand, evaluate, and decide — not to push them toward a purchase.
+
+- Explain concepts clearly with real examples and numbers
+- Present multiple options fairly — never position one option as "the best"
+- When mentioning specific companies, present them as examples, not recommendations
+- Use numbers to educate (₹ amounts, percentages) — not to sell
+- Avoid urgency language ("don't miss out", "act now", "limited time")
+
+━━━ LANGUAGE RULES (voice) ━━━
+
+TONE: A sharp, knowledgeable friend who works in insurance. Precise like Stripe's docs. Deep like a Toptal article. Friendly like Lemonade's blog. Never salesy.
+
+PARAGRAPHS:
+  - Maximum 3 sentences per paragraph. If you need more, start a new <p>.
+  - EVERY paragraph starts with a <strong>bold lead-in</strong> (2-6 words).
+    Someone reading ONLY the bold text should get 80% of the value.
+
+  EXAMPLE:
+  <p><strong>Comprehensive covers everything.</strong> Your own car damage, third-party liability, theft, fire, and natural disasters.</p>
+  <p><strong>Third-party is the legal minimum.</strong> It only covers damage you cause to someone else. Your own car? Not covered.</p>
+
+SPECIFICITY:
+  BAD: "Premiums vary based on multiple factors."
+  GOOD: "A 25-year-old in Mumbai pays ~₹8,000/year. Same car in a tier-3 city? ₹5,500."
+
+VOICE: Second person ("you/your"), active voice, present tense, short sentences.
+
+BANNED PHRASES (never use these — instant quality fail):
+"In conclusion", "It is important to note", "In today's world",
+"Needless to say", "Let us delve into", "In this comprehensive guide",
+"Without further ado", "It's worth noting", "One should consider",
+"As we explore", "As per", "In the realm of",
+"You'll learn", "We'll cover", "We'll explore", "Let's look at",
+"Let's examine", "Let's dive into", "In this article",
+"This article will", "This guide covers", "Read on to discover",
+"Understanding X is crucial", "Understanding X is important",
+"It goes without saying", "Grasp these elements",
+"This is more than just", "multiple factors", "various factors"
+
+ALL content uses HTML. <strong> for bold (NEVER **), <p> tags, <ul><li> for lists.
+
+CONTENT FORMATS: Choose the best fit for the question:
+  - "guide" — comprehensive how-to for complex topics
+  - "explained" — concept explainer for "what is" questions
+  - "how-to" — step-by-step process for "how do I" questions
+  - "compared" — side-by-side for "vs" or "which is better" questions
+  - "checklist" — actionable list for "what do I need" questions
+  - "deep-dive" — in-depth analysis for niche topics
+  - "myth-buster" — corrective content for common misconceptions
+
+━━━ VISUAL RULES (formatting) ━━━
+
+HEADINGS:
+  - 6-18 words, specific to the topic
+  - Mix: ~40% questions, ~30% statements, ~20% insight-driven, ~10% actionable
+  - Every heading should make someone want to read that section
+
+VOLUME:
+  - Informational: 8-12 sections, 1,800-2,500 words
+  - Longtail: 4-6 sections, 800-1,200 words
+
+KEY TAKEAWAY: Add to 2-3 important sections. Renders as a highlighted callout.
 Example: "<strong>Bottom line:</strong> Comprehensive covers your car AND others. Third-party only covers damage you cause to someone else."
+
+QUICK ANSWER BOX: Add a "quick_answer" field — a concise overview (2-3 sentences) that frames the topic and sets the stage for the article. Renders as a highlighted box at the top.
+
+━━━ GOLDEN EXAMPLE ━━━
+
+This is what a GREAT section looks like. Match this quality:
+
+{
+  "heading": "How much does comprehensive car insurance actually cost?",
+  "type": "content_block",
+  "content": {"html": "<p><strong>Expect ₹8,000–₹15,000/year for most cars.</strong> A 2023 Maruti Swift in Mumbai with comprehensive cover costs ~₹8,200/year. A Hyundai Creta? Around ₹12,500. These are real premium ranges — your exact price depends on car value, city, and your claim history.</p><p><strong>Your car's age is the biggest factor.</strong> A brand-new car has high IDV (Insured Declared Value), so premiums are higher. After 5 years, the IDV drops ~50%, and so does your premium — but so does your payout if the car is totalled.</p><p><strong>Watch out for the deductible trap.</strong> A ₹1,000 voluntary deductible can cut your premium by ₹800/year. But if you claim, you pay ₹1,000 out of pocket. Worth it if you rarely claim. Not worth it if you drive in Delhi traffic.</p>"},
+  "key_takeaway": "<strong>Bottom line:</strong> Budget ₹8K–₹15K/year. Use voluntary deductible only if you claim less than once every 2 years."
+}
+
+Notice: bold lead-ins carry the message, real ₹ numbers, specific car models, a watch-out, and a key takeaway with a decision rule. THIS is the bar.
 
 ━━━ ACCURACY ━━━
 
@@ -416,16 +428,17 @@ Weave ALL internal links from source pages naturally into content. Also list in 
 - how-to: step-by-step with cards
 - essay: deep narrative, single column
 
-━━━ SELF-EVALUATION ━━━
+━━━ BEFORE YOU OUTPUT ━━━
 
-Before outputting, check:
-1. Would I read past the first paragraph? Does the opening clearly explain what I'll learn?
-2. Does every section BUILD on the previous one, or could they be reordered without noticing?
-3. Does the reader feel AWARE → HELPED → UNDERSTOOD → SERVED → CURIOUS by the end?
-4. Are the headings a healthy mix of questions, statements, and insight-driven hooks?
-5. Are there specific examples and numbers, or is it all generic?
-6. Does the content_format match the cluster's topic?
-7. Would someone share this article with a friend?
+Re-read your ENTIRE article and check. If ANY check fails, fix it before outputting:
+
+1. FILLER CHECK: Read every paragraph. Does each one teach a NEW FACT? Delete or rewrite any sentence that talks about the article itself ("You'll learn...", "We'll cover...") instead of teaching.
+2. DEPTH CHECK: Does every concept get the full depth (what/how/example with ₹ numbers/when/watch-out)? If a section has only 1-2 generic sentences, it's too shallow — expand it.
+3. SPECIFICITY CHECK: Are there specific ₹ amounts, percentages, or real examples in at least 5 sections? If you wrote "premiums vary" anywhere, replace it with actual numbers.
+4. STRUCTURE CHECK: Does the article follow the 4-phase skeleton? At least 4 different section types? At least 1 callout box?
+5. DUPLICATION CHECK: Does the Quick Summary (last section) contain DIFFERENT phrasing from the body? Don't just copy-paste bullet points from earlier sections.
+6. SKELETON CHECK: Is the last section a bullet_list QUICK SUMMARY with 5-7 points?
+7. BOLD CHECK: Does every paragraph start with a <strong>bold lead-in</strong>? Can someone reading ONLY bold text get 80% of the value?
 
 ━━━ OUTPUT ━━━
 
@@ -458,18 +471,29 @@ def init_articles_db() -> None:
             model_used       TEXT
         )
     """)
+    # Migrate: add new columns if they don't exist yet
+    for col, coltype in [
+        ("business_line", "TEXT DEFAULT 'retail'"),
+        ("eeat_json", "TEXT"),
+        ("seo_geo_json", "TEXT"),
+    ]:
+        try:
+            conn.execute("ALTER TABLE articles ADD COLUMN {} {}".format(col, coltype))
+        except Exception:
+            pass
     conn.commit()
     conn.close()
 
 
 def save_article(cluster_id: int, question: str, result: dict,
-                 html: str, source_urls: List[str], model: str) -> int:
+                 html: str, source_urls: List[str], model: str,
+                 business_line: str = "retail") -> int:
     conn = sqlite3.connect(str(ARTICLES_DB_PATH))
     cursor = conn.execute(
         """INSERT INTO articles
            (cluster_id, consumer_question, suggested_slug, page_classification,
-            layout_type, structured_json, html_content, source_urls_json, model_used)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            layout_type, structured_json, html_content, source_urls_json, model_used, business_line)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
         (
             cluster_id,
             question,
@@ -480,12 +504,53 @@ def save_article(cluster_id: int, question: str, result: dict,
             html,
             json.dumps(source_urls, ensure_ascii=False),
             model,
+            business_line,
         ),
     )
     article_id = cursor.lastrowid
     conn.commit()
     conn.close()
     return article_id
+
+
+def update_article(article_id: int, result: dict, html: str) -> None:
+    """Update an existing article's structured_json and html_content."""
+    conn = sqlite3.connect(str(ARTICLES_DB_PATH))
+    conn.execute(
+        """UPDATE articles SET structured_json = ?, html_content = ?,
+           suggested_slug = ?, page_classification = ?, layout_type = ?
+           WHERE article_id = ?""",
+        (
+            json.dumps(result, ensure_ascii=False),
+            html,
+            result.get("suggested_slug", ""),
+            result.get("page_classification", "informational"),
+            result.get("layout_type", "explainer"),
+            article_id,
+        ),
+    )
+    conn.commit()
+    conn.close()
+
+
+def update_article_eval(article_id: int, eval_result: dict) -> None:
+    """Persist EEAT + SEO/GEO eval payload onto an article row."""
+    if not eval_result or "error" in eval_result:
+        return
+    conn = sqlite3.connect(str(ARTICLES_DB_PATH))
+    conn.execute(
+        """UPDATE articles SET eval_json = ?, eval_score = ?,
+           eeat_json = ?, seo_geo_json = ? WHERE article_id = ?""",
+        (
+            json.dumps(eval_result, ensure_ascii=False),
+            float(eval_result.get("overall_score", 0) or 0),
+            json.dumps(eval_result.get("eeat", {}), ensure_ascii=False),
+            json.dumps(eval_result.get("seo_geo", {}), ensure_ascii=False),
+            article_id,
+        ),
+    )
+    conn.commit()
+    conn.close()
 
 
 def load_articles() -> List[Dict]:
@@ -509,7 +574,7 @@ def load_clusters() -> List[Dict]:
     conn.close()
     result = []
     for r in rows:
-        result.append({
+        d = {
             "cluster_id": r["cluster_id"],
             "consumer_question": r["consumer_question"],
             "theme": r["theme"],
@@ -517,7 +582,42 @@ def load_clusters() -> List[Dict]:
             "priority": r["priority"],
             "urls": json.loads(r["urls_json"]) if r["urls_json"] else [],
             "status": r["status"],
-        })
+        }
+        try:
+            d["audience_persona"] = r["audience_persona"] or ""
+        except (IndexError, KeyError):
+            d["audience_persona"] = ""
+        try:
+            d["search_trigger"] = r["search_trigger"] or ""
+        except (IndexError, KeyError):
+            d["search_trigger"] = ""
+        try:
+            d["secondary_questions"] = json.loads(r["secondary_questions_json"] or "[]")
+        except (IndexError, KeyError, json.JSONDecodeError):
+            d["secondary_questions"] = []
+        # Enrichment fields (Phase 2)
+        try:
+            d["enrichment"] = json.loads(r["enrichment_json"] or "{}")
+        except (IndexError, KeyError, json.JSONDecodeError):
+            d["enrichment"] = {}
+        try:
+            d["page_details"] = json.loads(r["page_details_json"] or "[]")
+        except (IndexError, KeyError, json.JSONDecodeError):
+            d["page_details"] = []
+        # Content Engine fields
+        try:
+            d["business_line"] = r["business_line"] or "retail"
+        except (IndexError, KeyError):
+            d["business_line"] = "retail"
+        try:
+            d["brief_text"] = r["brief_text"] or ""
+        except (IndexError, KeyError):
+            d["brief_text"] = ""
+        try:
+            d["input_type"] = r["input_type"] or "crawled"
+        except (IndexError, KeyError):
+            d["input_type"] = "crawled"
+        result.append(d)
     return result
 
 
@@ -548,10 +648,97 @@ def get_cluster_page_data(urls: List[str]) -> List[Dict]:
 def build_cluster_prompt(cluster: Dict, pages: List[Dict]) -> str:
     """Build a user prompt that contains ALL pages in the cluster."""
     parts = []
+
+    business_line = cluster.get("business_line", "retail")
+    input_type = cluster.get("input_type", "crawled")
+    brief_text = cluster.get("brief_text", "")
+
+    # ---- BRIEF-BASED PATH (no crawled pages needed) ----
+    if brief_text and input_type in ("brief", "ref_url"):
+        parts.append("BUSINESS LINE: {}".format(business_line.upper()))
+        parts.append("CLUSTER QUESTION: {}".format(cluster["consumer_question"]))
+        if cluster.get("theme"):
+            parts.append("CLUSTER THEME: {}".format(cluster["theme"]))
+        if cluster.get("audience_persona"):
+            parts.append("TARGET AUDIENCE: {}".format(cluster["audience_persona"]))
+        if cluster.get("secondary_questions"):
+            parts.append("SECONDARY QUESTIONS TO ALSO ANSWER:")
+            for sq in cluster["secondary_questions"]:
+                parts.append("  - {}".format(sq))
+        parts.append("")
+        parts.append("━━━ CONTENT BRIEF (PRIMARY RESEARCH SOURCE) ━━━")
+        parts.append(brief_text[:8000])
+        parts.append("")
+        parts.append("━━━ YOUR TASK ━━━")
+        parts.append('Write ONE new blog article answering: "{}"'.format(
+            cluster["consumer_question"]))
+        parts.append("")
+        parts.append("The BRIEF above is your PRIMARY research source. Use ALL specific data points,")
+        parts.append("product details, figures, and angles provided in the brief.")
+        parts.append("Do NOT invent facts not present in the brief — if data is thin, write around what IS there.")
+        parts.append("")
+        if business_line == "enterprise":
+            parts.append("Set page_classification to 'enterprise' in your JSON output.")
+        parts.append("")
+        parts.append("REQUIREMENTS:")
+        parts.append("1. Follow the article SKELETON from your system instructions")
+        parts.append("2. Include a quick_answer field with at least one specific figure or fact from the brief")
+        parts.append("3. Every paragraph gets a <strong>bold lead-in</strong> and contains a specific fact or example")
+        parts.append("4. Use at least 4 different section types")
+        parts.append("5. Include at least 1 callout box")
+        parts.append("6. Use HTML only (never markdown bold). Every section needs a heading (6-18 words)")
+        parts.append("7. The LAST section must be a QUICK SUMMARY (bullet_list) with 5-7 key takeaway bullets")
+        parts.append("8. Return ONLY valid JSON")
+        return "\n".join(parts)
+
+    # ---- CRAWLED PAGES PATH (existing behaviour) ----
+    parts.append("BUSINESS LINE: {}".format(business_line.upper()))
     parts.append("CLUSTER QUESTION: {}".format(cluster["consumer_question"]))
     parts.append("CLUSTER THEME: {}".format(cluster["theme"]))
     parts.append("NUMBER OF SOURCE PAGES: {}".format(len(pages)))
+    if cluster.get("audience_persona"):
+        parts.append("TARGET AUDIENCE: {}".format(cluster["audience_persona"]))
+    if cluster.get("search_trigger"):
+        parts.append("SEARCH TRIGGER: {}".format(cluster["search_trigger"]))
+    if cluster.get("secondary_questions"):
+        parts.append("SECONDARY QUESTIONS TO ALSO ANSWER:")
+        for sq in cluster["secondary_questions"]:
+            parts.append("  - {}".format(sq))
     parts.append("")
+
+    # ---- Enrichment context (Phase 2) ----
+    enrichment = cluster.get("enrichment", {})
+    if enrichment:
+        parts.append("━━━ CLUSTER ANALYSIS (from deep enrichment) ━━━")
+        if enrichment.get("consolidation_strategy"):
+            parts.append("CONSOLIDATION STRATEGY: {}".format(enrichment["consolidation_strategy"]))
+        if enrichment.get("user_journey_stage"):
+            parts.append("USER JOURNEY STAGE: {}".format(enrichment["user_journey_stage"]))
+        if enrichment.get("question_type"):
+            parts.append("QUESTION TYPE: {}".format(enrichment["question_type"]))
+        if enrichment.get("content_depth_needed"):
+            parts.append("CONTENT DEPTH NEEDED: {}".format(enrichment["content_depth_needed"]))
+        if enrichment.get("suggested_pillar_question"):
+            parts.append("SUGGESTED PILLAR H1: {}".format(enrichment["suggested_pillar_question"]))
+        if enrichment.get("estimated_impact"):
+            parts.append("ESTIMATED IMPACT: {}".format(enrichment["estimated_impact"]))
+        subtopics = enrichment.get("subtopics", [])
+        if subtopics:
+            parts.append("SUBTOPICS TO COVER (each must get at least one section or substantial paragraph):")
+            for st_item in subtopics:
+                parts.append("  - {}".format(st_item))
+        parts.append("")
+
+    # Build quality map from page_details for per-page annotations
+    page_details = cluster.get("page_details", [])
+    quality_map = {}
+    for pd_item in page_details:
+        if isinstance(pd_item, dict) and pd_item.get("url"):
+            quality_map[pd_item["url"]] = {
+                "content_quality": pd_item.get("content_quality", ""),
+                "consolidation_role": pd_item.get("consolidation_role", ""),
+                "quality_rationale": pd_item.get("quality_rationale", ""),
+            }
 
     all_links = set()
 
@@ -572,7 +759,16 @@ def build_cluster_prompt(cluster: Dict, pages: List[Dict]) -> str:
             pass
 
         parts.append("━━━ SOURCE PAGE {} ━━━".format(i + 1))
-        parts.append("URL: {}".format(page.get("url", "")))
+        page_url = page.get("url", "")
+        parts.append("URL: {}".format(page_url))
+        # Per-page quality annotation from enrichment
+        qinfo = quality_map.get(page_url, {})
+        if qinfo.get("content_quality"):
+            parts.append("CONTENT QUALITY: {} | ROLE: {} | {}".format(
+                qinfo["content_quality"],
+                qinfo.get("consolidation_role", ""),
+                qinfo.get("quality_rationale", ""),
+            ))
         parts.append("TITLE: {}".format(page.get("title", "")))
         parts.append("H1: {}".format(page.get("h1", "")))
         parts.append("META: {}".format(page.get("meta_description", "")))
@@ -596,23 +792,41 @@ def build_cluster_prompt(cluster: Dict, pages: List[Dict]) -> str:
         if link:
             parts.append(link)
 
-    parts.append("")
+    # Add extracted facts if available
+    extracted_facts = cluster.get("_extracted_facts", "")
+    if extracted_facts:
+        parts.append("━━━ EXTRACTED FACTS (key data from source pages) ━━━")
+        parts.append(extracted_facts[:4000])
+        parts.append("")
+
+    # Add feedback from previous evaluation if this is a retry
+    feedback = cluster.get("_feedback", "")
+    if feedback:
+        parts.append("━━━ FEEDBACK FROM PREVIOUS ATTEMPT ━━━")
+        parts.append(feedback)
+        parts.append("Fix these specific issues in your new article.")
+        parts.append("")
+
     parts.append("━━━ YOUR TASK ━━━")
-    parts.append("Write ONE new article answering: \"{}\"".format(cluster["consumer_question"]))
+    parts.append("Write ONE new blog article answering: \"{}\"".format(cluster["consumer_question"]))
+    parts.append("")
+    parts.append("These source pages are RESEARCH MATERIAL — not a template. Read them all, extract the useful facts, then write something DEEPER and MORE COMPREHENSIVE than any single source page.")
+    parts.append("")
+    parts.append("PRIORITY ORDER:")
+    parts.append("1. DEPTH FIRST: Mine ALL specific data from the source pages — every ₹ amount, percentage, example, comparison, rule, deadline. Use them in the article. If a source page mentions a specific number, your article must include it.")
+    parts.append("2. COMPREHENSIVENESS: Cover every sub-topic the source pages cover. If 5 source pages each cover a different aspect, your article covers ALL 5 aspects in depth.")
+    parts.append("3. ZERO FILLER: Every sentence must teach a NEW FACT. Never write about the article itself ('You'll learn...', 'We'll cover...', 'This is more than...'). Just teach directly.")
+    parts.append("4. THEN STRUCTURE: Fit the depth into the article skeleton.")
     parts.append("")
     parts.append("REQUIREMENTS:")
-    parts.append("1. Choose the best content_format for this topic (guide, explained, how-to, compared, checklist, deep-dive, myth-buster).")
-    parts.append("2. Use facts and data from ALL {} source pages. Do NOT copy — create something better.".format(len(pages)))
-    parts.append("3. Open by clearly stating what the article covers and why it matters. NO disaster scenarios or fear-based hooks.")
-    parts.append("4. Design for the emotional journey: AWARE → HELPED → UNDERSTOOD → SERVED → CURIOUS.")
-    parts.append("5. Sections must CASCADE — each builds on the previous. Use forward references and callbacks.")
-    parts.append("6. Headings must be a MIX: ~40% questions, ~30% statements, ~20% insight-driven, ~10% actionable.")
-    parts.append("7. Include key_takeaway callout boxes on 2-3 critical sections.")
-    parts.append("8. Follow the 5-phase BACKBONE: ORIENT → MAP → DETAIL → COMPARE → ACT. Never skip MAP.")
-    parts.append("9. Write at least 8 sections with substantial content (2-3 paragraphs each).")
-    parts.append("10. Use HTML formatting only — never markdown bold (**).")
-    parts.append("11. EVERY section MUST have a non-empty 'heading' field (6-18 words). No vague headings.")
-    parts.append("12. Return ONLY valid JSON.")
+    parts.append("1. Follow the article SKELETON: Introduction → Overview → Context → Deep Sections → Comparison (if applicable) → Decision Guide → FAQ → Quick Summary")
+    parts.append("2. Include a quick_answer field — a concise overview (2-3 sentences) with at least one specific number from source data")
+    parts.append("3. Every paragraph gets a <strong>bold lead-in</strong> and contains a specific fact, number, or example")
+    parts.append("4. Use at least 4 different section types (content_block, bullet_list, comparison, callout_info/tip/warning, faq)")
+    parts.append("5. Include at least 1 callout box (callout_info, callout_tip, or callout_warning)")
+    parts.append("6. Use HTML only (never markdown bold). Every section needs a heading (6-18 words)")
+    parts.append("7. The LAST section must be a QUICK SUMMARY (bullet_list) with 5-7 key takeaway bullets — use DIFFERENT phrasing from the body, not copy-paste")
+    parts.append("8. Return ONLY valid JSON")
 
     return "\n".join(parts)
 
@@ -621,33 +835,362 @@ def build_cluster_prompt(cluster: Dict, pages: List[Dict]) -> str:
 # API call
 # ---------------------------------------------------------------------------
 
+# ---------------------------------------------------------------------------
+# Canon-driven system prompt builder
+# ---------------------------------------------------------------------------
+# When a research dict is available, we replace the legacy 700-line SYSTEM_PROMPT
+# with: thin role prefix + content_rules canon + per-article research brief.
+# The legacy SYSTEM_PROMPT remains as a fallback when research is unavailable.
+
+_CANON_ROLE_PREFIX = r"""You are the staff writer for Acko's content team. You write original blog articles for Indian readers — answering real questions about insurance with the warmth and clarity of a knowledgeable friend.
+
+Your output is a single JSON object describing the article (no markdown fences, no preamble). Schema:
+
+{
+  "h1": "<consumer question, near-verbatim>",
+  "suggested_slug": "<kebab-case slug>",
+  "page_classification": "informational | transactional | longtail | enterprise",
+  "layout_type": "explainer | comparison | how_to | troubleshooting | decision_guide",
+  "meta_title": "<55–65 chars>",
+  "meta_description": "<140–160 chars>",
+  "lede": "<2 short paragraphs answering the question in 60 seconds>",
+  "stage_setter": "<80–150 word paragraph after lede, before first H2: who is this for, what's at stake, why now>",
+  "sections": [
+    {
+      "section_id": "<stable-slug-id>",
+      "heading": "<H2: self-explanatory in TOC isolation>",
+      "type": "content_block | bullet_list | comparison_table | callout | steps | faq | expert_tip | cta",
+      "content": <type-appropriate payload>,
+      "bridge": "<sentence ending the section that sets up the next section's question>"
+    },
+    ...
+  ],
+  "faqs": [{"q": "...", "a": "<40–80 words>"}, ...],
+  "cta": {"label": "...", "href": "<acko.com URL>", "context": "<one-sentence why this CTA here>"},
+  "schema_blocks": ["Article", "FAQPage", ...],
+  "irdai_footer": "<standard IRDAI registration line>"
+}
+
+You will be given the canon (rules that govern every Acko article) and a per-article brief (the IA + coverage for THIS article). Write to both.
+
+The canon's reader contract supersedes everything: every component you include must serve the reader at this moment in their journey. If a section, callout, or block is not earning its place, cut it.
+"""
+
+
+def _build_canon_system_prompt(research: Optional[Dict] = None) -> str:
+    """Compose the system prompt: role prefix + content_rules canon + research brief.
+    Falls back to canon-only when research is missing."""
+    try:
+        from content_rules import load_rules
+    except Exception:
+        return SYSTEM_PROMPT  # legacy fallback
+
+    canon = load_rules()
+    parts = [_CANON_ROLE_PREFIX, "\n\n# THE CANON\n\n", canon]
+
+    if research and "error" not in research:
+        try:
+            from research_v2 import render_research_brief
+            parts.append("\n\n---\n\n# THIS ARTICLE\n\n")
+            parts.append(render_research_brief(research))
+        except Exception:
+            pass
+
+    return "".join(parts)
+
+
 def generate_article(api_key: str, cluster: Dict, pages: List[Dict],
-                     model: str = "gpt-4o") -> Dict:
+                     model: str = "gpt-4o",
+                     research: Optional[Dict] = None) -> Dict:
     client = openai.OpenAI(api_key=api_key)
     user_prompt = build_cluster_prompt(cluster, pages)
 
-    response = client.chat.completions.create(
-        model=model,
-        max_tokens=16384,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-    )
+    # Use canon-driven prompt when research is available; fall back to legacy.
+    if research is not None:
+        system_prompt = _build_canon_system_prompt(research)
+    else:
+        system_prompt = SYSTEM_PROMPT
+
+    messages = build_messages(system_prompt, user_prompt, model)
+    api_kwargs = build_api_kwargs(model, 16384, messages)
+    response = client.chat.completions.create(**api_kwargs)
 
     text = response.choices[0].message.content.strip()
 
-    # Parse JSON
-    if text.startswith("```"):
-        text = text.split("```")[1]
-        if text.startswith("json"):
-            text = text[4:]
-        text = text.strip()
-
     try:
-        return json.loads(text)
+        return extract_json(text)
     except json.JSONDecodeError:
         return {"error": "Failed to parse JSON", "raw_response": text}
+
+
+# ---------------------------------------------------------------------------
+# Quality Multiplier 1: Smart Source Extraction
+# ---------------------------------------------------------------------------
+
+EXTRACT_PROMPT = """Extract the useful facts from this insurance page. Return bullet points:
+- Key numbers (₹ amounts, percentages, dates, timelines)
+- Policy rules and eligibility criteria
+- Specific examples or scenarios mentioned
+- Common misconceptions addressed
+- Any comparison data (plan vs plan, option vs option)
+
+Be concise. Only include facts, not filler. If the page has little useful content, say "Minimal useful content."
+"""
+
+
+def extract_source_facts(api_key: str, pages: List[Dict],
+                         model: str = "gpt-4o-mini") -> str:
+    """Run a fast extraction pass on source pages to pull structured facts."""
+    client = openai.OpenAI(api_key=api_key)
+
+    all_facts = []
+    for page in pages:
+        body = (page.get("body_text") or "")[:6000]
+        if not body.strip():
+            continue
+
+        try:
+            extract_user = "URL: {}\nTitle: {}\n\n{}".format(
+                        page.get("url", ""), page.get("title", ""), body)
+            extract_msgs = build_messages(EXTRACT_PROMPT, extract_user, model)
+            extract_kwargs = build_api_kwargs(model, 1024, extract_msgs)
+            response = client.chat.completions.create(**extract_kwargs)
+            facts = response.choices[0].message.content.strip()
+            all_facts.append("From {}:\n{}".format(page.get("url", ""), facts))
+        except Exception:
+            continue
+
+    return "\n\n".join(all_facts) if all_facts else ""
+
+
+# ---------------------------------------------------------------------------
+# Quality Multiplier 2: Editor Pass (self-edit)
+# ---------------------------------------------------------------------------
+
+EDITOR_PROMPT = """You are a senior editor reviewing an AI-generated insurance article for Acko. Your job is to IMPROVE it, not rewrite it.
+
+Fix these specific issues (in priority order):
+
+1. FILLER & META-COMMENTARY (most important): Delete or rewrite any sentence that talks ABOUT the article instead of teaching:
+   ✗ "You'll learn about X" → Just explain X
+   ✗ "We'll cover car specifics" → Directly discuss car specifics
+   ✗ "This is more than just numbers" → Replace with an actual insight
+   ✗ "Understanding X is crucial" → Explain WHY with a specific fact
+   Every sentence must teach the reader something NEW. If it doesn't, delete it.
+
+2. SHALLOW SECTIONS: Any section with only 1-2 generic sentences needs real depth — add specific ₹ amounts, car models, city names, percentages, or concrete examples.
+
+3. GENERIC LANGUAGE: Replace ALL vague phrases:
+   ✗ "Premiums vary based on multiple factors" → "A Maruti Swift in Mumbai costs ₹8,200/year; the same car in Lucknow is ₹5,500"
+   ✗ "Various factors affect" → Name the exact factors with numbers
+
+4. DUPLICATE CONTENT: If the Quick Summary repeats content verbatim from earlier sections, rewrite the summary with fresh phrasing.
+
+5. Missing <strong>bold lead-in</strong> on paragraphs — add one (2-6 words).
+
+6. Two paragraph-only sections back to back — convert one to a bullet list, table, or callout.
+
+7. Any heading that's vague or generic — make it specific and compelling.
+
+Return the COMPLETE corrected article JSON. Same schema, improved content. No markdown fences.
+"""
+
+
+def editor_pass(api_key: str, article_json: str, consumer_question: str,
+                model: str = "gpt-4o", research: Optional[Dict] = None) -> Dict:
+    """Run a second pass on the article to catch and fix quality issues.
+
+    When the canon is available, the editor enforces it (instead of inventing
+    its own list). The legacy EDITOR_PROMPT is appended as concrete examples
+    so the editor still has actionable patterns to fix."""
+    client = openai.OpenAI(api_key=api_key)
+
+    # Build canon-aware editor prompt when content_rules is available
+    editor_system = EDITOR_PROMPT
+    try:
+        from content_rules import load_rules
+        canon = load_rules()
+        editor_system = (
+            "You are the senior editor enforcing the Acko content canon on a freshly drafted article. "
+            "Your job is to spot drift from the canon and fix it. Do not invent rules; do not rewrite "
+            "the article wholesale. Return the COMPLETE corrected article JSON, same schema, improved content. "
+            "No markdown fences.\n\n"
+            "# THE CANON (your enforcement reference)\n\n"
+            + canon
+            + "\n\n---\n\n# Concrete patterns to catch (in priority order)\n\n"
+            + EDITOR_PROMPT
+        )
+        if research and "error" not in research:
+            try:
+                from research_v2 import render_research_brief
+                editor_system += "\n\n---\n\n# This article's brief\n\n" + render_research_brief(research)
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    editor_user = "CONSUMER QUESTION: {}\n\nARTICLE JSON:\n{}".format(
+        consumer_question, article_json[:14000])
+    editor_msgs = build_messages(editor_system, editor_user, model)
+    editor_kwargs = build_api_kwargs(model, 16384, editor_msgs)
+    response = client.chat.completions.create(**editor_kwargs)
+
+    text = response.choices[0].message.content.strip()
+
+    try:
+        return extract_json(text)
+    except json.JSONDecodeError:
+        return {"error": "Editor pass failed to parse", "raw": text}
+
+
+# ---------------------------------------------------------------------------
+# Quality Multiplier 3: Auto-Evaluate + Regenerate
+# ---------------------------------------------------------------------------
+
+def _quick_evaluate(api_key: str, article_json: str, consumer_question: str,
+                    source_urls: List[str], model: str = "gpt-4o") -> Dict:
+    """EEAT + SEO/GEO scorecard via evaluation_v2.run_evaluation."""
+    try:
+        import evaluation_v2 as _ev
+    except Exception as e:
+        return {"error": "evaluation_v2 import failed: {}".format(e)}
+    return _ev.run_evaluation(api_key, article_json, source_urls, consumer_question, model)
+
+
+def generate_with_quality(api_key: str, cluster: Dict, pages: List[Dict],
+                          model: str = "gpt-4o",
+                          enable_extraction: bool = True,
+                          enable_editor: bool = True,
+                          enable_auto_eval: bool = True,
+                          status_callback=None) -> Dict:
+    """Full quality pipeline: research → extract → generate → edit → hard-checks → evaluate."""
+
+    # Step 0: Research pass — design the IA before writing
+    research = None
+    try:
+        from research_v2 import research_for_article
+        if status_callback:
+            status_callback("Scoping the article (research pass)...")
+        research = research_for_article(
+            api_key,
+            cluster.get("consumer_question", ""),
+            sources=pages or cluster.get("brief") or cluster.get("urls"),
+            model=model,
+        )
+        if research and "error" in research:
+            research = None  # fall through silently — generation still works
+    except Exception:
+        research = None
+
+    # Step 1: Extract facts from source pages
+    extracted_facts = ""
+    if enable_extraction and pages:
+        if status_callback:
+            status_callback("Extracting key facts from {} source pages...".format(len(pages)))
+        extracted_facts = extract_source_facts(api_key, pages, "gpt-4o-mini")
+
+    # Step 2: Generate article (canon-driven when research is available)
+    if status_callback:
+        status_callback("Writing article with {}...".format(model))
+
+    cluster_for_gen = dict(cluster)
+    if extracted_facts:
+        cluster_for_gen["_extracted_facts"] = extracted_facts
+    result = generate_article(api_key, cluster_for_gen, pages, model, research=research)
+
+    if not result or "error" in result:
+        return result
+
+    # Step 3: Editor pass (canon-aware)
+    if enable_editor:
+        if status_callback:
+            status_callback("Running editor pass...")
+        edited = editor_pass(api_key, json.dumps(result, ensure_ascii=False),
+                             cluster["consumer_question"], model, research=research)
+        if edited and "error" not in edited:
+            result = edited
+
+    # Step 3.4: Deterministic normaliser (footer extraction, box demotion, section cap)
+    try:
+        from content_rules import normalize_article
+        if status_callback:
+            status_callback("Normalising structure...")
+        result = normalize_article(result)
+    except Exception:
+        pass
+
+    # Step 3.5: Hard structural checks (run regardless of auto-eval)
+    hard_issues: List[Dict] = []
+    try:
+        from content_rules import run_hard_checks
+        hard_issues = run_hard_checks(result) or []
+    except Exception:
+        pass
+    if hard_issues:
+        if status_callback:
+            status_callback("Hard checks: {} structural issue(s) flagged.".format(len(hard_issues)))
+        # Auto-fix high-severity structural issues (callout adjacency, missing H1, etc.)
+        try:
+            import evaluation_v2 as _ev_hard
+            high = [i for i in hard_issues if i.get("severity") == "high"][:3]
+            for idx, issue in enumerate(high):
+                if status_callback:
+                    status_callback("Hard-fix {}/{}: {}".format(
+                        idx + 1, len(high), issue.get("what", "")[:80]))
+                result = _ev_hard.apply_fix(api_key, result, issue, full_article=result, model=model)
+            # Re-run hard checks after fixes (informational)
+            try:
+                from content_rules import run_hard_checks as _rhc
+                hard_issues = _rhc(result) or []
+            except Exception:
+                pass
+        except Exception:
+            pass
+
+    # Step 4: Auto-evaluate
+    if enable_auto_eval:
+        if status_callback:
+            status_callback("Evaluating article quality...")
+        eval_result = _quick_evaluate(
+            api_key, json.dumps(result, ensure_ascii=False),
+            cluster["consumer_question"], cluster.get("urls", []), model)
+
+        overall = eval_result.get("overall_score", 0) if isinstance(eval_result, dict) else 0
+        if overall and overall < 3.5 and "error" not in eval_result:
+            # Surgical fix loop — apply per-issue patches for high-severity issues, cap 3
+            try:
+                import evaluation_v2 as _ev
+            except Exception:
+                _ev = None
+
+            if _ev is not None:
+                top_issues = [i for i in eval_result.get("top_issues", [])
+                              if (i.get("severity") == "high")][:3]
+                for idx, issue in enumerate(top_issues):
+                    if status_callback:
+                        status_callback("Fix {}/{}: {}".format(
+                            idx + 1, len(top_issues), issue.get("what", "")[:80]))
+                    result = _ev.apply_fix(api_key, result, issue, full_article=result, model=model)
+
+                # Re-evaluate after fixes
+                if top_issues:
+                    if status_callback:
+                        status_callback("Re-evaluating after fixes...")
+                    eval_result = _ev.run_evaluation(
+                        api_key, json.dumps(result, ensure_ascii=False),
+                        cluster.get("urls", []), cluster["consumer_question"], model)
+
+        # Merge any remaining hard structural issues into top_issues so the
+        # eval drawer surfaces them with Fix-this affordances.
+        if hard_issues and isinstance(eval_result, dict) and "error" not in eval_result:
+            existing = list(eval_result.get("top_issues", []))
+            eval_result["top_issues"] = existing + hard_issues
+
+        # Store eval data in result for display
+        if eval_result and "error" not in eval_result:
+            result["_eval_preview"] = eval_result
+
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -733,6 +1276,7 @@ def transform_ai_response(raw: dict) -> dict:
         "page_title", "meta_description", "canonical_url", "breadcrumb",
         "product_label", "h1", "subtitle", "author", "reviewer",
         "internal_links_footer", "suggested_slug", "source_urls",
+        "quick_answer",
     ):
         if key in raw:
             out[key] = raw[key]
@@ -815,16 +1359,51 @@ def transform_ai_response(raw: dict) -> dict:
             if steps_data:
                 out["steps_renew"] = steps_data
 
-        else:
-            # content_block, bullet_list, etc.
-            sec_entry = {"heading": heading}  # type: Dict
-            text = _extract_text(content)
+        elif sec_type in ("callout_info", "callout_tip", "callout_warning"):
+            text = ""
+            label = "Note"
+            callout_type = sec_type.replace("callout_", "")  # info, tip, warning
+            if isinstance(content, dict):
+                text = content.get("text", "")
+                label = content.get("label", callout_type.title())
+            elif isinstance(content, str):
+                text = content
             if text:
-                sec_entry["content"] = _fix_content(text)
+                sec_entry = {"heading": heading}
+                sec_entry["callout"] = _fix_content(text)
+                sec_entry["callout_type"] = callout_type
+                sec_entry["callout_label"] = label
+                kt = section.get("key_takeaway")
+                if kt and isinstance(kt, str):
+                    sec_entry["key_takeaway"] = _fix_markdown_bold(kt.strip())
+                body_sections.append(sec_entry)
+
+        elif sec_type == "bullet_list":
+            # bullet_list — ONLY extract bullets, never duplicate as content text
+            sec_entry = {"heading": heading}  # type: Dict
             items = _extract_list(content, "items")
             if items:
-                # Fix markdown bold in bullet items
                 sec_entry["bullets"] = [_fix_markdown_bold(str(b)) for b in items]
+            elif isinstance(content, str):
+                # Fallback: if AI passed a string, wrap as content
+                sec_entry["content"] = _fix_content(content)
+            kt = section.get("key_takeaway")
+            if kt and isinstance(kt, str) and kt.strip():
+                sec_entry["key_takeaway"] = _fix_markdown_bold(kt.strip())
+            if sec_entry.get("bullets") or sec_entry.get("content"):
+                body_sections.append(sec_entry)
+
+        else:
+            # content_block and any other type
+            sec_entry = {"heading": heading}  # type: Dict
+            items = _extract_list(content, "items")
+            if items:
+                # Has items — treat as bullet-style, don't also extract text
+                sec_entry["bullets"] = [_fix_markdown_bold(str(b)) for b in items]
+            else:
+                text = _extract_text(content)
+                if text:
+                    sec_entry["content"] = _fix_content(text)
             # Extract key_takeaway callout if present
             kt = section.get("key_takeaway")
             if kt and isinstance(kt, str) and kt.strip():
@@ -1020,35 +1599,50 @@ def _infer_secondary_questions(cluster: Dict) -> List[str]:
 
 
 def main():
-    st.set_page_config(page_title="Generate — Acko SEO", page_icon="✍️", layout="wide")
+    st.set_page_config(page_title="Generate — Acko Content Studio", page_icon="●", layout="wide")
 
-    # ---- Minimal CSS ----
-    st.markdown("""<style>
-    .block-container { padding-top: 1rem !important; max-width: 1100px !important; }
-    .step-badge { display:inline-block; font-size:0.68rem; font-weight:700; letter-spacing:2px;
-        text-transform:uppercase; padding:3px 10px; border-radius:6px; margin-right:6px; }
-    [data-testid="metric-container"] { background: #f8f9fa; padding: 8px 12px; border-radius: 8px; }
-    .eeat-panel { background: #fafbfc; border: 1px solid #e5e7eb; border-radius: 10px; padding: 16px; }
-    </style>""", unsafe_allow_html=True)
+    # Theme import (local to avoid top-level sys.path issues)
+    import sys as _sys
+    _sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from ui import apply_theme, sidebar as ui_sidebar, page_header, section_label  # noqa: E402
+
+    apply_theme()
+    ui_sidebar(current="generate")
+
+    page_header(
+        eyebrow="Step 3",
+        title="Generate",
+        meta="Write from clusters or briefs",
+    )
 
     init_articles_db()
 
-    # ---- Sidebar ----
+    # ---- Sidebar settings ----
     deployment_key = get_openai_key()
     with st.sidebar:
-        st.markdown("**acko** Content Studio")
-        st.page_link("app.py", label="Home", icon="🏠")
-        st.page_link("pages/1_crawler.py", label="Crawl", icon="🕷️")
-        st.page_link("pages/2_content_architecture.py", label="Architecture", icon="🏗️")
-        st.page_link("pages/3_generate.py", label="Generate", icon="✍️")
-        st.page_link("pages/4_evaluate.py", label="Evaluate", icon="📊")
-        st.divider()
+        st.markdown(
+            '<div style="padding:18px 12px 8px;font-family:Inter,sans-serif;font-size:0.7rem;'
+            'font-weight:600;letter-spacing:1.5px;color:#8d969e;text-transform:uppercase;">Settings</div>',
+            unsafe_allow_html=True,
+        )
         if deployment_key:
             api_key = deployment_key
-            st.success("API key active", icon="🔑")
+            st.caption("API key active")
         else:
             api_key = st.text_input("OpenAI API key", type="password", placeholder="sk-...")
-        model = st.selectbox("Model", ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"], index=0)
+        model = st.selectbox("Model", MODELS, index=0, label_visibility="collapsed")
+
+        st.markdown(
+            '<div style="padding:18px 12px 4px;font-family:Inter,sans-serif;font-size:0.7rem;'
+            'font-weight:600;letter-spacing:1.5px;color:#8d969e;text-transform:uppercase;">Quality pipeline</div>',
+            unsafe_allow_html=True,
+        )
+        enable_extraction = st.checkbox("Smart source extraction", value=True,
+                                        help="Pre-extract facts from source pages (faster, cleaner input)")
+        enable_editor = st.checkbox("Editor pass", value=True,
+                                    help="Self-edit pass to fix formatting and depth issues")
+        enable_auto_eval = st.checkbox("Auto-evaluate", value=True,
+                                       help="Score article and regenerate if below threshold")
 
     # ---- Load data ----
     clusters = load_clusters()
@@ -1061,12 +1655,39 @@ def main():
     # ================================================================
     # STEP 1 — Select cluster
     # ================================================================
-    st.markdown("### 1. Pick a cluster")
+    section_label("1 · Pick a cluster")
 
+    # Filters
+    filter_col1, filter_col2, filter_col3 = st.columns([1, 1, 2])
+    with filter_col1:
+        themes = sorted(set(c.get("theme", "") for c in clusters if c.get("theme")))
+        theme_filter = st.selectbox("Theme", ["All themes"] + themes, index=0)
+    with filter_col2:
+        bl_filter = st.selectbox("Business line", ["All", "enterprise", "retail", "longtail"], index=0)
+    with filter_col3:
+        search_text = st.text_input("Search", placeholder="Search by question or theme...", label_visibility="collapsed")
+
+    filtered = clusters
+    if theme_filter != "All themes":
+        filtered = [c for c in filtered if c.get("theme") == theme_filter]
+    if bl_filter != "All":
+        filtered = [c for c in filtered if c.get("business_line", "retail") == bl_filter]
+    if search_text.strip():
+        q = search_text.strip().lower()
+        filtered = [c for c in filtered if q in c["consumer_question"].lower() or q in (c.get("theme") or "").lower()]
+
+    st.caption("Showing {} of {} clusters".format(len(filtered), len(clusters)))
+
+    if not filtered:
+        st.warning("No clusters match your filters.")
+        return
+
+    _BL_ICONS = {"enterprise": "🏢", "retail": "👤", "longtail": "🔍"}
     cluster_options = {}
-    for c in clusters:
-        label = "[P{}] {} — {} ({} pages)".format(
-            c["priority"], c["consumer_question"][:70], c["theme"], len(c["urls"]))
+    for c in filtered:
+        bl_icon = _BL_ICONS.get(c.get("business_line", "retail"), "")
+        source = "brief" if c.get("input_type") == "brief" else "{} pages".format(len(c["urls"]))
+        label = "{} [{}] {} ({})".format(bl_icon, c["theme"], c["consumer_question"][:65], source)
         cluster_options[label] = c
 
     selected_label = st.selectbox("Cluster", list(cluster_options.keys()), label_visibility="collapsed")
@@ -1078,16 +1699,21 @@ def main():
     with col_q:
         st.markdown("**Primary question**")
         st.info(selected_cluster["consumer_question"])
-        secondary_qs = _infer_secondary_questions(selected_cluster)
+        # Use cluster secondary questions if available, else infer
+        secondary_qs = selected_cluster.get("secondary_questions") or _infer_secondary_questions(selected_cluster)
         if secondary_qs:
             st.markdown("**Readers will also ask**")
             for sq in secondary_qs:
                 st.caption("→ {}".format(sq))
+        if selected_cluster.get("audience_persona"):
+            st.caption("👤 **Audience:** {}".format(selected_cluster["audience_persona"]))
+        if selected_cluster.get("search_trigger"):
+            st.caption("🔍 **Search trigger:** {}".format(selected_cluster["search_trigger"]))
 
     with col_meta:
         m1, m2, m3 = st.columns(3)
         m1.metric("Pages", len(selected_cluster["urls"]))
-        m2.metric("Priority", "{}/10".format(selected_cluster["priority"]))
+        m2.metric("Theme", selected_cluster.get("theme", "—")[:12])
         m3.metric("Type", selected_cluster.get("page_group", "info")[:5])
         with st.expander("Source URLs"):
             for url in selected_cluster["urls"]:
@@ -1097,25 +1723,59 @@ def main():
     # STEP 2 — Generate
     # ================================================================
     st.markdown("---")
-    st.markdown("### 2. Generate article")
+    section_label("2 · Launch generation")
 
-    generate_btn = st.button("✍️ Generate Article", type="primary", use_container_width=True)
+    # Dark launch bar — meta line above the primary button
+    st.markdown(
+        f'<div style="background:#0a0b13;color:#ffffff;border-radius:14px;'
+        f'padding:20px 24px;margin:8px 0 12px;display:flex;align-items:center;'
+        f'justify-content:space-between;gap:16px;">'
+        f'<div>'
+        f'<div style="font-family:Inter,sans-serif;font-weight:600;font-size:15px;'
+        f'letter-spacing:-0.005em;">3-pass pipeline — extract · generate · editor · evaluate</div>'
+        f'<div style="font-family:JetBrains Mono,monospace;font-size:12px;'
+        f'color:rgba(255,255,255,0.64);margin-top:4px;">~2 min · {model} · estimated cost $0.14</div>'
+        f'</div>'
+        f'<div style="font-family:Inter,sans-serif;font-size:12px;'
+        f'color:rgba(255,255,255,0.52);">Click Generate below ↓</div>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    generate_btn = st.button("Generate article  →", type="primary", use_container_width=True)
 
     if generate_btn:
         if not api_key:
             st.error("Set your OpenAI API key in the sidebar.")
         else:
-            with st.spinner("Loading source pages..."):
-                pages = get_cluster_page_data(selected_cluster["urls"])
-            if not pages:
-                st.error("No crawled data for this cluster. Run the crawler first.")
+            _input_type = selected_cluster.get("input_type", "crawled")
+            if _input_type in ("brief", "ref_url"):
+                # Brief-based cluster — no crawl lookup needed
+                pages = []
             else:
-                with st.spinner("Writing article with {} — takes 30-60s...".format(model)):
-                    try:
-                        result = generate_article(api_key, selected_cluster, pages, model)
-                    except Exception as e:
-                        st.error("API error: {}".format(e))
-                        result = None
+                with st.spinner("Loading source pages..."):
+                    pages = get_cluster_page_data(selected_cluster["urls"])
+                if not pages:
+                    st.error("No crawled data for this cluster. Run the crawler first.")
+                    st.stop()
+            if pages is not None:
+                status_box = st.empty()
+                def _status(msg):
+                    status_box.info(msg)
+
+                try:
+                    result = generate_with_quality(
+                        api_key, selected_cluster, pages, model,
+                        enable_extraction=enable_extraction,
+                        enable_editor=enable_editor,
+                        enable_auto_eval=enable_auto_eval,
+                        status_callback=_status,
+                    )
+                except Exception as e:
+                    st.error("API error: {}".format(e))
+                    result = None
+
+                status_box.empty()
 
                 if result and "error" in result:
                     st.error(result["error"])
@@ -1131,7 +1791,16 @@ def main():
                         cluster_id=selected_cluster["cluster_id"],
                         question=selected_cluster["consumer_question"],
                         result=result, html=html_content,
-                        source_urls=selected_cluster["urls"], model=model)
+                        source_urls=selected_cluster["urls"], model=model,
+                        business_line=selected_cluster.get("business_line", "retail"))
+
+                    # Persist EEAT + SEO/GEO eval if it was produced during generation
+                    _eval_preview = result.get("_eval_preview")
+                    if _eval_preview and "overall_score" in _eval_preview:
+                        try:
+                            update_article_eval(article_id, _eval_preview)
+                        except Exception:
+                            pass
 
                     html_path = ARTICLES_DIR / "{}.html".format(slug)
                     html_path.write_text(html_content, encoding="utf-8")
@@ -1150,7 +1819,7 @@ def main():
 
     if result and html_content:
         st.markdown("---")
-        st.markdown("### 3. Results")
+        section_label("3 · Results")
         st.success("Article #{} generated".format(st.session_state.get("last_article_id", "")))
 
         # ---- Two-column layout: main stats + EEAT/SEO panel ----
@@ -1241,6 +1910,48 @@ def main():
             st.caption("{} Slug: /{}".format(
                 "✅" if seo["slug_ok"] else "⚠️", seo["slug"]))
 
+            # ---- Auto-eval preview (full 6-dimension breakdown) ----
+            eval_preview = result.get("_eval_preview")
+            if eval_preview and "weighted_average" in eval_preview:
+                st.divider()
+                avg = eval_preview["weighted_average"]
+                verdict = eval_preview.get("verdict", "unknown")
+                verdict_icon = {"approve": "✅", "conditional": "🟡", "reject": "❌"}.get(verdict, "❓")
+
+                st.markdown("#### Northstar Quality Score")
+                st.metric("Overall", "{} {:.1f}/5 — {}".format(verdict_icon, avg, verdict.upper()))
+
+                scores = eval_preview.get("scores", {})
+                with st.expander("📊 Dimension Breakdown", expanded=True):
+                    for dim_key, dim_info in scores.items():
+                        if not isinstance(dim_info, dict):
+                            continue
+                        score = dim_info.get("score", 0)
+                        reasoning = dim_info.get("reasoning", "")
+                        dim_label = dim_key.replace("_", " ").title()
+                        bar_icon = "🟢" if score >= 4 else "🟡" if score >= 3 else "🔴"
+                        st.markdown("{} **{}** — {}/5".format(bar_icon, dim_label, score))
+                        st.progress(score / 5.0)
+                        if reasoning:
+                            st.caption(reasoning)
+
+                col_str, col_imp = st.columns(2)
+                with col_str:
+                    strengths = eval_preview.get("top_strengths", [])
+                    if strengths:
+                        with st.expander("✅ Strengths"):
+                            for s in strengths:
+                                st.markdown("- {}".format(s))
+                with col_imp:
+                    issues = eval_preview.get("top_issues", [])
+                    improvements = eval_preview.get("suggested_improvements", [])
+                    if issues or improvements:
+                        with st.expander("⚠️ Issues & Improvements"):
+                            for issue in issues:
+                                st.markdown("- ⚠️ {}".format(issue))
+                            for imp in improvements:
+                                st.markdown("- 💡 {}".format(imp))
+
         # ---- Preview tabs ----
         st.markdown("---")
         tab_preview, tab_before, tab_json = st.tabs(["✨ Article Preview", "📄 Source Pages (Before)", "📋 Raw JSON"])
@@ -1265,6 +1976,29 @@ def main():
 
         with tab_json:
             st.json(result)
+
+        # ---- EEAT + SEO/GEO drawer ----
+        _eval_v2 = result.get("_eval_preview")
+        if _eval_v2 and isinstance(_eval_v2, dict) and "overall_score" in _eval_v2:
+            st.markdown("---")
+            section_label("Quality · EEAT + SEO/GEO")
+            try:
+                import evaluation_v2 as _ev_mod
+                _aid = st.session_state.get("last_article_id", "new")
+
+                def _on_fix(issue):
+                    api_key_local = get_openai_key()
+                    updated = _ev_mod.apply_fix(api_key_local, result, issue,
+                                                full_article=result, model=model)
+                    st.session_state["last_result"] = updated
+                    st.session_state["last_html"] = render_html(updated)
+                    if isinstance(_aid, int):
+                        update_article(_aid, updated, st.session_state["last_html"])
+                    st.rerun()
+
+                _ev_mod.render_eval_drawer(_eval_v2, _aid, on_fix_callback=_on_fix)
+            except Exception as _e:
+                st.warning("Eval drawer error: {}".format(_e))
 
         # ---- Downloads ----
         slug = st.session_state.get("last_slug", "article")

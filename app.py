@@ -1,56 +1,51 @@
 """
-Acko SEO Content Pipeline — Home
+Acko Content Studio — Home (Studio v2 direction)
+Dual-entry dashboard: Path A (crawl) · Path B (brief) · shared 3-pass pipeline.
 """
+from __future__ import annotations
+import sqlite3
+from datetime import datetime
+from pathlib import Path
 
 import streamlit as st
 
+from ui import (
+    apply_theme,
+    sidebar,
+    topbar,
+    hero_grid,
+    stat_row,
+    activity_feed,
+    side_card,
+    tip_dark,
+    pill,
+    section_label,
+    empty_state,
+)
+
 st.set_page_config(
-    page_title="Acko SEO Pipeline",
-    page_icon="🔍",
+    page_title="Studio · Acko Content",
+    page_icon="●",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-st.markdown(
-    """
-    <style>
-    div[data-testid="stSidebarNav"] { padding-top: 0.5rem; }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+apply_theme()
+sidebar(current="dashboard")
 
-with st.sidebar:
-    st.header("Pipeline")
-    st.page_link("app.py", label="Home", icon="🏠")
-    st.page_link("pages/1_crawler.py", label="1. Crawl", icon="🕷️")
-    st.page_link("pages/2_content_architecture.py", label="2. Architecture", icon="🏗️")
-    st.page_link("pages/3_generate.py", label="3. Generate", icon="✍️")
-    st.page_link("pages/4_evaluate.py", label="4. Evaluate", icon="📊")
-    st.divider()
-    st.caption("Acko SEO Pipeline · v2.0")
-
-st.title("Acko SEO Content Pipeline")
-st.markdown("Transform ~3,500 legacy pages into high-quality, SEO-optimised articles using AI.")
-
-# ---------------------------------------------------------------------------
-# Live stats
-# ---------------------------------------------------------------------------
-import sqlite3
-from pathlib import Path
-
-_root = Path(__file__).resolve().parent
-_crawl_db = _root / "crawl_state.db"
-_cluster_db = _root / "clusters.db"
-_articles_db = _root / "articles.db"
+# ─── Data ────────────────────────────────────────────────────────────────────
+ROOT         = Path(__file__).resolve().parent
+CRAWL_DB     = ROOT / "crawl_state.db"
+CLUSTER_DB   = ROOT / "clusters.db"
+ARTICLES_DB  = ROOT / "articles.db"
 
 
-def _count(db, table, where=""):
+def _count(db: Path, table: str, where: str = "") -> int:
     if not db.exists():
         return 0
     try:
         conn = sqlite3.connect(str(db))
-        q = "SELECT COUNT(*) FROM {}".format(table) + (" WHERE " + where if where else "")
+        q = f"SELECT COUNT(*) FROM {table}" + (f" WHERE {where}" if where else "")
         n = conn.execute(q).fetchone()[0]
         conn.close()
         return n
@@ -58,122 +53,208 @@ def _count(db, table, where=""):
         return 0
 
 
-pages_crawled = _count(_crawl_db, "pages")
-clusters_total = _count(_cluster_db, "clusters")
-clusters_ready = _count(_cluster_db, "clusters", "status='ready'")
-articles_gen = _count(_articles_db, "articles")
-articles_approved = _count(_articles_db, "articles", "status='approved'")
+def _fetch(db: Path, query: str, params=()) -> list:
+    if not db.exists():
+        return []
+    try:
+        conn = sqlite3.connect(str(db))
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(query, params).fetchall()
+        conn.close()
+        return [dict(r) for r in rows]
+    except Exception:
+        return []
 
-# ---------------------------------------------------------------------------
-# Process flow — visual pipeline
-# ---------------------------------------------------------------------------
-st.markdown("---")
-st.markdown("### How it works")
 
-flow_html = """
-<div style="display:flex; align-items:stretch; gap:0; margin:24px 0 32px; font-family:Inter,sans-serif;">
+pages_crawled     = _count(CRAWL_DB,    "pages")
+clusters_total    = _count(CLUSTER_DB,  "clusters")
+clusters_ready    = _count(CLUSTER_DB,  "clusters", "status='ready'")
+clusters_enriched = _count(CLUSTER_DB,  "clusters", "enriched_at IS NOT NULL")
+articles_gen      = _count(ARTICLES_DB, "articles")
+articles_approved = _count(ARTICLES_DB, "articles", "status='approved'")
+articles_draft    = _count(ARTICLES_DB, "articles", "status='draft'")
 
-  <div style="flex:1; background:linear-gradient(135deg,#EDE9FE,#F3F0FF); border-radius:16px 0 0 16px; padding:24px 20px; text-align:center; position:relative;">
-    <div style="font-size:2rem; margin-bottom:8px;">🕷️</div>
-    <div style="font-size:0.7rem; font-weight:700; letter-spacing:2px; color:#7C3AED; margin-bottom:6px;">STEP 1</div>
-    <div style="font-size:1.05rem; font-weight:800; color:#1A1A2E; margin-bottom:6px;">Crawl</div>
-    <div style="font-size:0.82rem; color:#4B5563; line-height:1.5;">Headless browser extracts content, headings, links & metadata from legacy pages</div>
-    <div style="margin-top:12px; font-size:0.78rem; font-weight:600; color:#522ED3;">""" + str(pages_crawled) + """ pages</div>
-    <div style="position:absolute; right:-14px; top:50%; transform:translateY(-50%); z-index:2; font-size:1.2rem; color:#7C3AED;">→</div>
-  </div>
+scored = _fetch(ARTICLES_DB, "SELECT eval_score FROM articles WHERE eval_score IS NOT NULL")
+avg_score = round(sum(r["eval_score"] for r in scored) / len(scored), 1) if scored else None
 
-  <div style="flex:1; background:linear-gradient(135deg,#E0F2FE,#EFF6FF); padding:24px 20px; text-align:center; position:relative;">
-    <div style="font-size:2rem; margin-bottom:8px;">🧩</div>
-    <div style="font-size:0.7rem; font-weight:700; letter-spacing:2px; color:#0284C7; margin-bottom:6px;">STEP 2</div>
-    <div style="font-size:1.05rem; font-weight:800; color:#1A1A2E; margin-bottom:6px;">Cluster</div>
-    <div style="font-size:0.82rem; color:#4B5563; line-height:1.5;">AI groups pages by the real consumer question they answer. Many pages → one cluster.</div>
-    <div style="margin-top:12px; font-size:0.78rem; font-weight:600; color:#0284C7;">""" + str(clusters_total) + """ clusters (""" + str(clusters_ready) + """ ready)</div>
-    <div style="position:absolute; right:-14px; top:50%; transform:translateY(-50%); z-index:2; font-size:1.2rem; color:#0284C7;">→</div>
-  </div>
+recent = _fetch(
+    ARTICLES_DB,
+    "SELECT article_id, consumer_question, status, eval_score, model_used, generated_at, business_line "
+    "FROM articles ORDER BY generated_at DESC LIMIT 5",
+)
 
-  <div style="flex:1; background:linear-gradient(135deg,#D1FAE5,#ECFDF5); padding:24px 20px; text-align:center; position:relative;">
-    <div style="font-size:2rem; margin-bottom:8px;">✍️</div>
-    <div style="font-size:0.7rem; font-weight:700; letter-spacing:2px; color:#059669; margin-bottom:6px;">STEP 3</div>
-    <div style="font-size:1.05rem; font-weight:800; color:#1A1A2E; margin-bottom:6px;">Generate</div>
-    <div style="font-size:0.82rem; color:#4B5563; line-height:1.5;">AI writes one new article per cluster — better than any source page. Production-ready HTML.</div>
-    <div style="margin-top:12px; font-size:0.78rem; font-weight:600; color:#059669;">""" + str(articles_gen) + """ articles</div>
-    <div style="position:absolute; right:-14px; top:50%; transform:translateY(-50%); z-index:2; font-size:1.2rem; color:#059669;">→</div>
-  </div>
+# ─── Greeting ────────────────────────────────────────────────────────────────
+hour = datetime.now().hour
+greet = "Good morning" if hour < 12 else ("Good afternoon" if hour < 18 else "Good evening")
 
-  <div style="flex:1; background:linear-gradient(135deg,#FEF3C7,#FFFBEB); border-radius:0 16px 16px 0; padding:24px 20px; text-align:center;">
-    <div style="font-size:2rem; margin-bottom:8px;">📊</div>
-    <div style="font-size:0.7rem; font-weight:700; letter-spacing:2px; color:#D97706; margin-bottom:6px;">STEP 4</div>
-    <div style="font-size:1.05rem; font-weight:800; color:#1A1A2E; margin-bottom:6px;">Evaluate</div>
-    <div style="font-size:0.82rem; color:#4B5563; line-height:1.5;">Northstar framework scores on 6 dimensions. Only articles above the quality bar get published.</div>
-    <div style="margin-top:12px; font-size:0.78rem; font-weight:600; color:#D97706;">""" + str(articles_approved) + """ approved</div>
-  </div>
+topbar(
+    crumbs=[("Studio", False), ("Home", True)],
+    actions_html=(
+        f'<div style="font-family:JetBrains Mono,monospace;font-size:11.5px;color:#9aa0b1;">'
+        f'{datetime.now().strftime("%a %d %b")}</div>'
+    ),
+)
 
-</div>
-"""
-
-st.markdown(flow_html, unsafe_allow_html=True)
-
-# ---------------------------------------------------------------------------
-# Key insight callout
-# ---------------------------------------------------------------------------
 st.markdown(
-    """
-    <div style="background:#F8F7FF; border-left:4px solid #522ED3; border-radius:0 12px 12px 0; padding:20px 24px; margin:0 0 32px; font-family:Inter,sans-serif;">
-        <div style="font-size:0.72rem; font-weight:700; letter-spacing:2px; text-transform:uppercase; color:#522ED3; margin-bottom:6px;">KEY CONCEPT</div>
-        <p style="font-size:0.95rem; color:#374151; line-height:1.7; margin:0;">
-            This is <strong>not</strong> a page rewriter. It's a <strong>blog-writing agent</strong>.
-            3,500 legacy pages are raw research material — the AI reads all source pages in a cluster,
-            then writes one new article that answers the consumer question better than any individual page.
-            Think of it as turning a messy wiki into a polished editorial blog.
-        </p>
-    </div>
-    """,
+    f'<div style="margin:0 0 6px;">'
+    f'<div style="font-family:Inter,sans-serif;font-size:11px;font-weight:600;'
+    f'letter-spacing:0.08em;text-transform:uppercase;color:#9aa0b1;">Studio</div>'
+    f'<div style="font-family:Inter,sans-serif;font-size:30px;font-weight:700;'
+    f'letter-spacing:-0.022em;color:#0a0b13;line-height:1.15;margin-top:4px;">'
+    f'{greet}. Two ways to create content — pick where you\'re starting from.</div>'
+    f'<div style="font-family:Inter,sans-serif;font-size:13.5px;color:#6b7084;'
+    f'margin-top:6px;max-width:640px;line-height:1.55;">'
+    f'Path A consolidates legacy acko.com pages into authoritative articles. '
+    f'Path B lets you write from a blank page with a guided 3-step brief. '
+    f'Both feed the same generation pipeline.</div>'
+    f'</div>',
     unsafe_allow_html=True,
 )
 
-# ---------------------------------------------------------------------------
-# Quick-launch cards
-# ---------------------------------------------------------------------------
-st.markdown("### Quick launch")
+# ─── Dual entry heroes ───────────────────────────────────────────────────────
+hero_grid(
+    path_a={
+        "eyebrow": "PATH A · CRAWL-BASED",
+        "title": "Consolidate legacy pages",
+        "desc": "Crawler reads acko.com sections, groups pages by consumer question, and generates "
+                "one authoritative article per cluster. Old pages get 301-mapped.",
+        "meta": f"{pages_crawled:,} pages · {clusters_total} clusters · {clusters_ready} ready",
+        "cta_label": "Open Crawl Studio",
+        "cta_route": "pages/2_clusters.py",
+    },
+    path_b={
+        "eyebrow": "PATH B · BRIEF-BASED",
+        "title": "Write something new",
+        "desc": "Fill a 3-step brief — topic, audience, research — and Studio runs the same pipeline. "
+                "No crawling. Ideal for Enterprise where no legacy pages exist.",
+        "meta": "text · PDF · DOCX · reference URLs",
+        "cta_label": "Open Brief Studio",
+        "cta_route": "pages/0_content_brief.py",
+    },
+)
 
-col1, col2, col3, col4 = st.columns(4, gap="medium")
+# ─── Stat strip ──────────────────────────────────────────────────────────────
+stat_row([
+    ("Pages crawled",  f"{pages_crawled:,}",                            "across all sections"),
+    ("Clusters",       f"{clusters_total}",                              f"{clusters_ready} ready · {clusters_enriched} enriched"),
+    ("Articles",       f"{articles_gen}",                                f"{articles_draft} drafts · {articles_approved} approved"),
+    ("Avg quality",    (f"{avg_score}" if avg_score else "—"),           "Northstar · out of 5.0"),
+])
 
-with col1:
-    with st.container(border=True):
-        st.markdown("**🕷️ Crawl**")
-        st.caption("Extract content from acko.com legacy pages into `crawl_state.db`")
-        st.page_link("pages/1_crawler.py", label="Open →", icon="🕷️")
+# ─── Two-column body: activity | right rail ──────────────────────────────────
+st.markdown('<div style="height:28px;"></div>', unsafe_allow_html=True)
 
-with col2:
-    with st.container(border=True):
-        st.markdown("**🧩 Cluster**")
-        st.caption("Group pages by consumer question using AI")
-        st.page_link("pages/2_clusters.py", label="Open →", icon="🧩")
+left, right = st.columns([1.7, 1], gap="large")
 
-with col3:
-    with st.container(border=True):
-        st.markdown("**✍️ Generate**")
-        st.caption("Write new articles from clusters with inferred questions")
-        st.page_link("pages/3_generate.py", label="Open →", icon="✍️")
+with left:
+    if recent:
+        tone_for_status = {"approved": "success", "draft": "warning", "rejected": "danger"}
+        rows = []
+        for a in recent:
+            q = (a.get("consumer_question") or "Untitled").strip()
+            if len(q) > 58:
+                q = q[:56] + "…"
+            status = (a.get("status") or "draft").lower()
+            bl = (a.get("business_line") or "retail").lower()
+            score = a.get("eval_score")
+            date = (a.get("generated_at") or "")[:10]
+            # Path A or B heuristic — cluster-based have cluster_id, brief-based don't; we don't
+            # have that field here, so default icon to "A"
+            icon = "A"
+            icon_tone = ""
+            right_pill = pill(status, tone_for_status.get(status, "neutral"))
+            if score:
+                right_pill = (
+                    f'<span style="font-family:JetBrains Mono,monospace;font-size:12px;'
+                    f'color:#0a0b13;font-weight:600;margin-right:10px;">{score:.1f}</span>'
+                    f'{right_pill}'
+                )
+            sub = f"{bl.title()} · {date or '—'}"
+            rows.append((icon, icon_tone, q, sub, right_pill))
+        segmented = (
+            '<div class="rui-seg">'
+            '<span class="s on">All</span>'
+            '<span class="s">Path A</span>'
+            '<span class="s">Path B</span>'
+            '</div>'
+        )
+        activity_feed("Recent activity", rows, right_html=segmented)
+    else:
+        empty_state(
+            "Nothing published yet",
+            "Pick Path A or Path B above to generate your first article.",
+        )
 
-with col4:
-    with st.container(border=True):
-        st.markdown("**📊 Evaluate**")
-        st.caption("Score articles against Northstar quality framework")
-        st.page_link("pages/4_evaluate.py", label="Open →", icon="📊")
+with right:
+    # Pipeline health
+    total_passes_est = max(1, clusters_total)
+    ready_pct = int(100 * clusters_ready / total_passes_est) if total_passes_est else 0
+    enriched_pct = int(100 * clusters_enriched / total_passes_est) if total_passes_est else 0
+    gen_pct = int(100 * articles_gen / max(1, clusters_total)) if clusters_total else 0
 
-# ---------------------------------------------------------------------------
-# Configuration
-# ---------------------------------------------------------------------------
-with st.expander("Configuration tips", expanded=False):
+    health_body = (
+        f'<div class="row"><span>Clusters enriched</span><span class="v">{clusters_enriched}/{clusters_total}</span></div>'
+        f'<div class="bar"><span style="width:{enriched_pct}%"></span></div>'
+        f'<div class="row"><span>Clusters ready</span><span class="v">{clusters_ready}/{clusters_total}</span></div>'
+        f'<div class="bar"><span style="width:{ready_pct}%"></span></div>'
+        f'<div class="row"><span>Generated</span><span class="v">{articles_gen}/{clusters_total or 1}</span></div>'
+        f'<div class="bar"><span style="width:{min(gen_pct,100)}%"></span></div>'
+    )
+    side_card("Pipeline health", health_body)
+
+    # Needs you — use st.page_link below each row so routing works
     st.markdown(
-        """
-        - **API key:** Set `OPENAI_API_KEY` as an env variable or in Streamlit Secrets.
-        - **Playwright:** The crawler needs Chromium — run `playwright install chromium`.
-        - **Order:** Crawl → Cluster → Generate → Evaluate. Each step reads from the previous.
-        - **Northstar:** The quality framework is defined in `northstar.md` — edit it to change evaluation criteria.
-        """
+        '<div class="rui-side-card"><div class="t">Needs you</div>',
+        unsafe_allow_html=True,
+    )
+    any_need = False
+    if clusters_ready:
+        st.markdown(
+            f'<div class="row"><span>{clusters_ready} clusters ready to generate</span></div>',
+            unsafe_allow_html=True,
+        )
+        st.page_link("pages/3_generate.py", label="Open Generate →")
+        any_need = True
+    if articles_draft:
+        st.markdown(
+            f'<div class="row"><span>{articles_draft} drafts awaiting review</span></div>',
+            unsafe_allow_html=True,
+        )
+        st.page_link("pages/7_library.py", label="Open Library →")
+        any_need = True
+    if pages_crawled == 0:
+        st.markdown(
+            '<div class="row"><span>No pages crawled yet</span></div>',
+            unsafe_allow_html=True,
+        )
+        st.page_link("pages/2_clusters.py", label="Start crawl →")
+        any_need = True
+    if not any_need:
+        st.markdown(
+            '<div class="row" style="color:#9aa0b1;">You\'re all caught up.</div>',
+            unsafe_allow_html=True,
+        )
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    # Tip
+    tip_dark(
+        "Jump anywhere",
+        "Every page, article and cluster is reachable from the sidebar. Hit the section headers to see the full list.",
+        kbd="⌘K",
     )
 
-st.divider()
-st.caption("Acko SEO Content Pipeline v2.0 — Blog-writing agent architecture")
+# ─── Footer note ─────────────────────────────────────────────────────────────
+st.markdown('<div style="height:48px;"></div>', unsafe_allow_html=True)
+st.markdown(
+    '<div style="padding:22px 26px;background:#f5f6f8;border-radius:14px;border:1px solid #f0f1f5;">'
+    '<div style="font-family:Inter,sans-serif;font-size:11px;font-weight:600;'
+    'letter-spacing:0.08em;text-transform:uppercase;color:#9aa0b1;">How it works</div>'
+    '<div style="font-family:Inter,sans-serif;font-size:15px;color:#2b2e3a;'
+    'margin-top:6px;line-height:1.55;max-width:820px;">'
+    'Studio is a <b>blog-writing agent</b>, not a page rewriter. It reads every '
+    'source in a cluster (or brief) and produces <b>one authoritative article</b> '
+    'that answers the consumer question better than any single source — then '
+    'scores it on the Northstar rubric before you ever see it.</div>'
+    '</div>',
+    unsafe_allow_html=True,
+)

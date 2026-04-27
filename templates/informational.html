@@ -402,6 +402,30 @@
     }
     .article-body strong { color: #1A1A2E; }
 
+    /* ========== QUICK ANSWER BOX ========== */
+    .quick-answer-box {
+      background: linear-gradient(135deg, #ECFDF5, #D1FAE5);
+      border-left: 4px solid #10B981;
+      border-radius: 0 14px 14px 0;
+      padding: 24px 28px;
+      margin: 24px 0 32px;
+    }
+    .quick-answer-box .quick-answer-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: #059669;
+      margin-bottom: 8px;
+    }
+    .quick-answer-box p {
+      font-size: 1rem;
+      color: #1A1A2E;
+      line-height: 1.7;
+      margin-bottom: 0;
+      font-weight: 500;
+    }
+
     /* ========== KEY TAKEAWAY BOX ========== */
     .key-takeaway {
       border-left: 4px solid #522ED3;
@@ -419,6 +443,41 @@
       margin-bottom: 8px;
     }
     .key-takeaway p {
+      font-size: 0.95rem;
+      color: #374151;
+      line-height: 1.7;
+      margin-bottom: 0;
+    }
+
+    /* ========== CALLOUT BOXES ========== */
+    .callout {
+      border-radius: 0 12px 12px 0;
+      padding: 20px 24px;
+      margin: 28px 0;
+    }
+    .callout-info {
+      background: linear-gradient(135deg, #EFF6FF, #DBEAFE);
+      border-left: 4px solid #3B82F6;
+    }
+    .callout-tip {
+      background: linear-gradient(135deg, #F0FDF4, #DCFCE7);
+      border-left: 4px solid #10B981;
+    }
+    .callout-warning {
+      background: linear-gradient(135deg, #FFFBEB, #FEF3C7);
+      border-left: 4px solid #F59E0B;
+    }
+    .callout .callout-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .callout-info .callout-label { color: #1D4ED8; }
+    .callout-tip .callout-label { color: #059669; }
+    .callout-warning .callout-label { color: #92400E; }
+    .callout p {
       font-size: 0.95rem;
       color: #374151;
       line-height: 1.7;
@@ -1116,6 +1175,16 @@
     </div>
   </section>
 
+  <!-- ========== QUICK ANSWER BOX ========== -->
+  {% if quick_answer %}
+  <div class="container">
+    <div class="quick-answer-box">
+      <div class="quick-answer-label">Quick Answer</div>
+      <p>{{ quick_answer | safe }}</p>
+    </div>
+  </div>
+  {% endif %}
+
   <!-- ========== CHARTS (data visualisation) ========== -->
   {% if graph_data %}
   <div class="container">
@@ -1212,6 +1281,13 @@
                   <li>{{ bullet | safe }}</li>
                   {% endfor %}
                 </ul>
+              </div>
+              {% endif %}
+
+              {% if section.callout %}
+              <div class="callout callout-{{ section.callout_type | default('info') }}">
+                <div class="callout-label">{{ section.callout_label | default('Note') }}</div>
+                <p>{{ section.callout | safe }}</p>
               </div>
               {% endif %}
 
@@ -1447,7 +1523,7 @@
       });
     }, { threshold: 0.1 });
 
-    document.querySelectorAll('.article-card, .faq-item, .key-takeaway, .expert-callout, .mid-cta').forEach(function(el) {
+    document.querySelectorAll('.article-card, .faq-item, .key-takeaway, .expert-callout, .mid-cta, .callout').forEach(function(el) {
       observer.observe(el);
     });
   </script>

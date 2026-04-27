@@ -1,6 +1,9 @@
 # Virtual environment
 .venv/
 
+# Node (keep package.json + lockfile tracked, ignore the 9MB tree)
+node_modules/
+
 # Databases (contain crawled data - large)
 *.db
 

@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="en-IN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ page_title | default('Acko Business Insurance') }}</title>
+  <meta name="description" content="{{ meta_description | default('') }}">
+  {% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}">{% endif %}
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="{{ page_title | default('Acko Business Insurance') }}">
+  <meta property="og:description" content="{{ meta_description | default('') }}">
+  {% if canonical_url %}<meta property="og:url" content="{{ canonical_url }}">{% endif %}
+  <meta property="og:site_name" content="Acko Business">
+  <meta property="og:image" content="https://www.acko.com/assets/img/acko-og.png">
+
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "Article",
+        "headline": {{ (h1 or page_title or '') | tojson }},
+        "description": {{ (meta_description or '') | tojson }},
+        "url": {{ (canonical_url or '') | tojson }},
+        "publisher": {
+          "@type": "Organization",
+          "name": "Acko",
+          "url": "https://www.acko.com",
+          "logo": { "@type": "ImageObject", "url": "https://www.acko.com/assets/img/acko-logo.png" }
+        }{% if author and author.name %},
+        "author": { "@type": "Person", "name": {{ author.name | tojson }} }{% endif %}
+      }{% if breadcrumb %},
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          {% for crumb in breadcrumb %}
+          { "@type": "ListItem", "position": {{ loop.index }}, "name": {{ crumb.text | tojson }}, "item": {{ (crumb.url or '#') | tojson }} }{% if not loop.last %},{% endif %}
+          {% endfor %}
+        ]
+      }{% endif %}{% if faqs %},
+      {
+        "@type": "FAQPage",
+        "mainEntity": [
+          {% for faq in faqs %}
+          {
+            "@type": "Question",
+            "name": {{ faq.question | tojson }},
+            "acceptedAnswer": { "@type": "Answer", "text": {{ faq.answer | tojson }} }
+          }{% if not loop.last %},{% endif %}
+          {% endfor %}
+        ]
+      }{% endif %}
+    ]
+  }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+    /* ========== RESET & BASE ========== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #0F172A;
+      background: #FFFFFF;
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+    img { max-width: 100%; display: block; }
+    a { color: inherit; text-decoration: none; }
+    ul, ol { list-style: none; }
+    button, input { font-family: inherit; border: none; outline: none; }
+
+    /* ========== BRAND TOKENS (Enterprise) ========== */
+    :root {
+      --blue-900: #1E3A5F;
+      --blue-800: #1E40AF;
+      --blue-700: #1D4ED8;
+      --blue-600: #2563EB;
+      --blue-100: #DBEAFE;
+      --blue-50:  #EFF6FF;
+      --slate-900: #0F172A;
+      --slate-800: #1E293B;
+      --slate-700: #334155;
+      --slate-600: #475569;
+      --slate-400: #94A3B8;
+      --slate-200: #E2E8F0;
+      --slate-100: #F1F5F9;
+      --slate-50:  #F8FAFC;
+      --green-700: #15803D;
+      --green-100: #DCFCE7;
+      --amber-700: #B45309;
+      --amber-100: #FEF3C7;
+      --red-700:   #B91C1C;
+      --red-100:   #FEE2E2;
+      --acko-purple: #522ED3;
+    }
+
+    /* ========== UTILITIES ========== */
+    .container { width: 100%; max-width: 1240px; margin: 0 auto; padding: 0 28px; }
+
+    /* ========== READING PROGRESS BAR ========== */
+    .progress-bar {
+      position: fixed; top: 0; left: 0;
+      width: 0%; height: 3px;
+      background: linear-gradient(90deg, var(--blue-700), #38BDF8);
+      z-index: 200; transition: width 0.1s linear;
+    }
+
+    /* ========== STICKY NAV ========== */
+    .sticky-nav {
+      position: sticky; top: 0; z-index: 100;
+      background: var(--slate-900);
+      border-bottom: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 1px 12px rgba(0,0,0,0.3);
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 56px;
+    }
+    .nav-logo {
+      font-size: 1.35rem; font-weight: 900; color: #fff; letter-spacing: -0.03em;
+    }
+    .nav-logo span { color: #38BDF8; }
+    .nav-badge {
+      font-size: 0.65rem; font-weight: 700; letter-spacing: 1.5px;
+      text-transform: uppercase; color: rgba(255,255,255,0.45);
+      border: 1px solid rgba(255,255,255,0.15);
+      padding: 3px 8px; border-radius: 4px; margin-left: 10px;
+    }
+    .nav-cta {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--blue-600);
+      color: #fff; font-weight: 700; font-size: 0.85rem;
+      padding: 9px 20px; border-radius: 8px;
+      transition: background 0.2s;
+    }
+    .nav-cta:hover { background: var(--blue-700); }
+
+    /* ========== BREADCRUMB ========== */
+    .breadcrumb-bar {
+      background: var(--slate-800);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      padding: 10px 0;
+    }
+    .breadcrumb-bar nav {
+      display: flex; align-items: center; flex-wrap: wrap;
+      gap: 4px; font-size: 0.78rem; color: rgba(255,255,255,0.45);
+    }
+    .breadcrumb-bar a { color: rgba(255,255,255,0.55); }
+    .breadcrumb-bar a:hover { color: #fff; }
+    .breadcrumb-bar .sep { color: rgba(255,255,255,0.2); margin: 0 4px; }
+    .breadcrumb-bar .current { color: rgba(255,255,255,0.75); }
+
+    /* ========== ENTERPRISE HERO ========== */
+    .article-hero {
+      background: linear-gradient(135deg, var(--slate-900) 0%, var(--blue-900) 100%);
+      padding: 56px 0 48px;
+      border-bottom: 3px solid var(--blue-600);
+      position: relative;
+      overflow: hidden;
+    }
+    .article-hero::before {
+      content: '';
+      position: absolute;
+      top: -80px; right: -80px;
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(37,99,235,0.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-kicker {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: rgba(37,99,235,0.25);
+      border: 1px solid rgba(37,99,235,0.4);
+      color: #93C5FD;
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: 5px 14px; border-radius: 6px;
+      margin-bottom: 20px;
+    }
+    .article-hero h1 {
+      font-size: clamp(1.8rem, 3.5vw, 2.6rem);
+      font-weight: 900;
+      color: #fff;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+      max-width: 780px;
+      margin-bottom: 16px;
+    }
+    .article-hero .intro {
+      font-size: 1.05rem;
+      color: rgba(255,255,255,0.65);
+      max-width: 640px;
+      line-height: 1.7;
+      margin-bottom: 28px;
+    }
+    .hero-meta {
+      display: flex; align-items: center; gap: 24px;
+      flex-wrap: wrap;
+    }
+    .hero-meta-item {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.82rem; color: rgba(255,255,255,0.5);
+    }
+    .hero-meta-item strong { color: rgba(255,255,255,0.75); }
+    .hero-divider {
+      width: 1px; height: 16px;
+      background: rgba(255,255,255,0.15);
+    }
+    .author-badges {
+      display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    }
+    .author-badge {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .author-avatar {
+      width: 38px; height: 38px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--blue-600), #38BDF8);
+      color: #fff; font-size: 0.9rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .badge-label { font-size: 0.68rem; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 1px; }
+    .badge-name  { font-size: 0.88rem; font-weight: 700; color: rgba(255,255,255,0.85); }
+    .badge-title { font-size: 0.75rem; color: rgba(255,255,255,0.5); }
+
+    /* ========== EXECUTIVE SUMMARY BOX ========== */
+    .exec-summary {
+      background: var(--slate-50);
+      border: 1.5px solid var(--slate-200);
+      border-left: 5px solid var(--blue-600);
+      border-radius: 0 12px 12px 0;
+      padding: 28px 32px;
+      margin: 32px 0;
+    }
+    .exec-summary-label {
+      font-size: 0.68rem; font-weight: 800; letter-spacing: 2.5px;
+      text-transform: uppercase; color: var(--blue-600);
+      margin-bottom: 12px;
+    }
+    .exec-summary h3 {
+      font-size: 1rem; font-weight: 700; color: var(--slate-900);
+      margin-bottom: 10px;
+    }
+    .exec-summary p {
+      font-size: 0.92rem; color: var(--slate-700); line-height: 1.7;
+    }
+    .exec-summary ul {
+      list-style: none; margin-top: 10px;
+    }
+    .exec-summary ul li {
+      font-size: 0.9rem; color: var(--slate-700); line-height: 1.6;
+      padding: 4px 0 4px 20px;
+      position: relative;
+    }
+    .exec-summary ul li::before {
+      content: '✓';
+      position: absolute; left: 0;
+      color: var(--blue-600); font-weight: 700;
+    }
+
+    /* ========== ROI CALLOUT CARD ========== */
+    .roi-callout {
+      background: linear-gradient(135deg, var(--blue-900), #1E3A5F);
+      border-radius: 16px;
+      padding: 28px 32px;
+      margin: 28px 0;
+      display: flex; align-items: flex-start; gap: 24px;
+      flex-wrap: wrap;
+    }
+    .roi-icon {
+      font-size: 2.2rem; flex-shrink: 0; margin-top: 2px;
+    }
+    .roi-content { flex: 1; min-width: 200px; }
+    .roi-label {
+      font-size: 0.68rem; font-weight: 800; letter-spacing: 2px;
+      text-transform: uppercase; color: #93C5FD;
+      margin-bottom: 6px;
+    }
+    .roi-content h3 {
+      font-size: 1.2rem; font-weight: 800; color: #fff;
+      margin-bottom: 8px;
+    }
+    .roi-content p {
+      font-size: 0.88rem; color: rgba(255,255,255,0.65); line-height: 1.6;
+    }
+    .roi-stats {
+      display: flex; gap: 28px; flex-wrap: wrap; margin-top: 16px;
+    }
+    .roi-stat { text-align: center; }
+    .roi-stat-value {
+      font-size: 1.5rem; font-weight: 900; color: #fff;
+      line-height: 1;
+    }
+    .roi-stat-label {
+      font-size: 0.72rem; color: rgba(255,255,255,0.5);
+      margin-top: 3px;
+    }
+
+    /* ========== COMPLIANCE BADGE ========== */
+    .compliance-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--green-100);
+      border: 1px solid #86EFAC;
+      border-radius: 8px;
+      padding: 8px 16px;
+      margin: 4px 0;
+      font-size: 0.82rem; font-weight: 600; color: var(--green-700);
+    }
+    .compliance-badge .badge-icon { font-size: 1rem; }
+
+    /* ========== MAIN LAYOUT ========== */
+    .article-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 300px;
+      gap: 48px;
+      padding: 40px 0 64px;
+      align-items: start;
+    }
+    .article-main { min-width: 0; }
+
+    /* ========== ARTICLE BODY TYPOGRAPHY ========== */
+    .article-body h2 {
+      font-size: 1.45rem; font-weight: 800;
+      color: var(--slate-900); letter-spacing: -0.02em;
+      margin: 2.5rem 0 1rem;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--slate-200);
+    }
+    .article-body h3 {
+      font-size: 1.1rem; font-weight: 700;
+      color: var(--slate-800);
+      margin: 1.6rem 0 0.7rem;
+    }
+    .article-body p {
+      font-size: 0.97rem; color: var(--slate-700);
+      line-height: 1.75; margin-bottom: 1rem;
+    }
+    .article-body ul, .article-body ol {
+      margin: 0.8rem 0 1.2rem 0;
+    }
+    .article-body ul li, .article-body ol li {
+      font-size: 0.95rem; color: var(--slate-700);
+      line-height: 1.7;
+      padding: 3px 0 3px 20px;
+      position: relative;
+    }
+    .article-body ul li::before {
+      content: '→';
+      position: absolute; left: 0;
+      color: var(--blue-600); font-weight: 700;
+    }
+    .article-body ol { counter-reset: item; }
+    .article-body ol li { counter-increment: item; }
+    .article-body ol li::before {
+      content: counter(item) '.';
+      position: absolute; left: 0;
+      color: var(--blue-600); font-weight: 700; font-size: 0.85rem;
+    }
+    .article-body strong { font-weight: 700; color: var(--slate-900); }
+    .article-body em { font-style: italic; color: var(--slate-600); }
+    .section-body { margin-bottom: 1.2rem; }
+
+    /* ========== CALLOUTS ========== */
+    .callout {
+      border-radius: 10px;
+      padding: 18px 22px;
+      margin: 1.5rem 0;
+      border-left: 4px solid;
+    }
+    .callout-label {
+      font-size: 0.68rem; font-weight: 800; letter-spacing: 2px;
+      text-transform: uppercase; margin-bottom: 7px;
+    }
+    .callout p { font-size: 0.9rem; line-height: 1.65; margin: 0; }
+    .callout-info    { background: var(--blue-50);   border-color: var(--blue-600);   }
+    .callout-info    .callout-label { color: var(--blue-700); }
+    .callout-info    p { color: var(--slate-700); }
+    .callout-warning { background: var(--amber-100); border-color: #D97706; }
+    .callout-warning .callout-label { color: var(--amber-700); }
+    .callout-warning p { color: #78350F; }
+    .callout-success { background: var(--green-100); border-color: #16A34A; }
+    .callout-success .callout-label { color: var(--green-700); }
+    .callout-success p { color: #14532D; }
+    .callout-error   { background: var(--red-100);   border-color: #DC2626; }
+    .callout-error   .callout-label { color: var(--red-700); }
+    .callout-error   p { color: #7F1D1D; }
+
+    /* IRDAI Compliance callout (special treatment) */
+    .callout-compliance {
+      background: linear-gradient(135deg, #F0FDF4, #DCFCE7);
+      border: 1.5px solid #4ADE80;
+      border-radius: 12px;
+      padding: 20px 24px;
+      margin: 1.5rem 0;
+      display: flex; gap: 14px; align-items: flex-start;
+    }
+    .callout-compliance-icon { font-size: 1.5rem; flex-shrink: 0; }
+    .callout-compliance-body { flex: 1; }
+    .callout-compliance-label {
+      font-size: 0.68rem; font-weight: 800; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--green-700);
+      margin-bottom: 5px;
+    }
+    .callout-compliance-body p {
+      font-size: 0.88rem; color: #14532D; line-height: 1.65; margin: 0;
+    }
+
+    /* ========== KEY TAKEAWAY ========== */
+    .key-takeaway {
+      background: var(--blue-50);
+      border: 1.5px solid var(--blue-100);
+      border-left: 4px solid var(--blue-600);
+      border-radius: 0 10px 10px 0;
+      padding: 16px 20px; margin: 1.2rem 0;
+    }
+    .takeaway-label {
+      font-size: 0.65rem; font-weight: 800; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--blue-600); margin-bottom: 6px;
+    }
+    .key-takeaway p { font-size: 0.88rem; color: var(--slate-700); line-height: 1.65; margin: 0; }
+
+    /* ========== BULLET SUMMARY ========== */
+    .bullet-summary {
+      background: var(--slate-50);
+      border: 1.5px solid var(--slate-200);
+      border-radius: 12px;
+      padding: 20px 24px; margin: 1.2rem 0;
+    }
+    .summary-label {
+      font-size: 0.65rem; font-weight: 800; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--slate-600); margin-bottom: 10px;
+    }
+    .bullet-summary ul { list-style: none; }
+    .bullet-summary ul li {
+      font-size: 0.9rem; color: var(--slate-700); line-height: 1.65;
+      padding: 4px 0 4px 22px; position: relative;
+    }
+    .bullet-summary ul li::before {
+      content: '▸';
+      position: absolute; left: 0; color: var(--blue-600);
+    }
+
+    /* ========== ENTERPRISE TABLES ========== */
+    .styled-table {
+      width: 100%; border-collapse: collapse;
+      font-size: 0.88rem; margin: 1.5rem 0;
+      border: 1px solid var(--slate-200);
+      border-radius: 12px; overflow: hidden;
+      box-shadow: 0 1px 6px rgba(0,0,0,0.06);
+    }
+    .styled-table thead tr {
+      background: var(--slate-800); color: #fff;
+    }
+    .styled-table thead th {
+      padding: 14px 18px;
+      font-weight: 700; font-size: 0.82rem; text-align: left;
+      letter-spacing: 0.3px;
+      border-right: 1px solid rgba(255,255,255,0.08);
+    }
+    .styled-table thead th:last-child { border-right: none; }
+    .styled-table tbody tr { border-bottom: 1px solid var(--slate-200); }
+    .styled-table tbody tr:nth-child(even) { background: var(--slate-50); }
+    .styled-table tbody tr:hover { background: var(--blue-50); }
+    .styled-table tbody td {
+      padding: 13px 18px; color: var(--slate-700);
+      border-right: 1px solid var(--slate-200);
+      vertical-align: top;
+    }
+    .styled-table tbody td:last-child { border-right: none; }
+    .styled-table tbody td:first-child { font-weight: 600; color: var(--slate-900); }
+    .table-check  { color: var(--green-700); font-weight: 700; }
+    .table-cross  { color: var(--red-700);   font-weight: 700; }
+    .table-partial{ color: var(--amber-700); font-weight: 700; }
+
+    /* Plan tier badge inside table */
+    .tier-badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      font-size: 0.72rem; font-weight: 700; letter-spacing: 1px;
+      text-transform: uppercase; padding: 3px 10px; border-radius: 20px;
+    }
+    .tier-basic    { background: var(--slate-100); color: var(--slate-600); }
+    .tier-standard { background: var(--blue-100);  color: var(--blue-800); }
+    .tier-premium  { background: #EDE9FE; color: #5B21B6; }
+
+    /* ========== IMPLEMENTATION STEPS ========== */
+    .impl-steps { margin: 1.5rem 0; }
+    .impl-step {
+      display: flex; gap: 18px;
+      padding: 18px 0;
+      border-bottom: 1px solid var(--slate-200);
+    }
+    .impl-step:last-child { border-bottom: none; }
+    .step-num {
+      width: 36px; height: 36px; border-radius: 50%;
+      background: var(--blue-600); color: #fff;
+      font-size: 0.88rem; font-weight: 800;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0; margin-top: 2px;
+    }
+    .step-body { flex: 1; }
+    .step-body h4 {
+      font-size: 0.97rem; font-weight: 700; color: var(--slate-900);
+      margin-bottom: 5px;
+    }
+    .step-body p {
+      font-size: 0.88rem; color: var(--slate-600); line-height: 1.6; margin: 0;
+    }
+
+    /* ========== EXPERT TIP / QUOTE ========== */
+    .expert-callout {
+      display: flex; gap: 18px; align-items: flex-start;
+      background: var(--slate-50);
+      border: 1.5px solid var(--slate-200);
+      border-radius: 14px;
+      padding: 24px 26px; margin: 2rem 0;
+    }
+    .callout-icon { font-size: 1.8rem; flex-shrink: 0; }
+    blockquote {
+      font-size: 1rem; font-style: italic;
+      color: var(--slate-800); line-height: 1.7;
+      margin-bottom: 10px;
+    }
+    .callout-author {
+      font-size: 0.83rem; color: var(--slate-600);
+    }
+    .callout-author strong { color: var(--slate-900); }
+
+    /* ========== MID-ARTICLE CTA (enterprise flavour) ========== */
+    .mid-cta {
+      display: flex; align-items: center; justify-content: space-between;
+      background: linear-gradient(135deg, var(--blue-900), var(--blue-800));
+      border-radius: 14px;
+      padding: 24px 28px; margin: 2.5rem 0;
+      gap: 20px; flex-wrap: wrap;
+    }
+    .mid-cta-text h3 {
+      font-size: 1rem; font-weight: 800; color: #fff; margin-bottom: 4px;
+    }
+    .mid-cta-text p {
+      font-size: 0.85rem; color: rgba(255,255,255,0.6); margin: 0;
+    }
+    .mid-cta-btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: #fff; color: var(--blue-800);
+      font-weight: 700; font-size: 0.88rem;
+      padding: 12px 24px; border-radius: 10px;
+      white-space: nowrap; transition: all 0.2s;
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+    .mid-cta-btn:hover { background: var(--blue-50); transform: translateY(-1px); }
+
+    /* ========== SIDEBAR ========== */
+    .article-sidebar { min-width: 0; }
+    .toc-sticky { position: sticky; top: 72px; }
+    .toc-box {
+      background: var(--slate-50);
+      border: 1.5px solid var(--slate-200);
+      border-radius: 14px;
+      padding: 20px 22px; margin-bottom: 20px;
+    }
+    .toc-box h4 {
+      font-size: 0.72rem; font-weight: 800; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--slate-600);
+      margin-bottom: 14px;
+    }
+    .toc-box ul { list-style: none; }
+    .toc-box ul li { margin-bottom: 2px; }
+    .toc-box ul li a {
+      display: block;
+      font-size: 0.85rem; color: var(--slate-600);
+      padding: 5px 8px; border-radius: 6px;
+      transition: all 0.15s; line-height: 1.4;
+    }
+    .toc-box ul li a:hover {
+      background: var(--blue-50); color: var(--blue-700);
+    }
+
+    .sidebar-cta {
+      background: linear-gradient(135deg, var(--blue-900), var(--slate-900));
+      border-radius: 14px;
+      padding: 22px;
+    }
+    .sidebar-cta h4 {
+      font-size: 0.95rem; font-weight: 800; color: #fff; margin-bottom: 8px;
+    }
+    .sidebar-cta p {
+      font-size: 0.82rem; color: rgba(255,255,255,0.55); line-height: 1.6; margin-bottom: 16px;
+    }
+    .sidebar-btn {
+      display: block; text-align: center;
+      background: var(--blue-600); color: #fff;
+      font-weight: 700; font-size: 0.85rem;
+      padding: 12px 16px; border-radius: 10px;
+      transition: background 0.2s; text-decoration: none;
+    }
+    .sidebar-btn:hover { background: var(--blue-700); }
+
+    .sidebar-compliance {
+      background: var(--green-100);
+      border: 1px solid #BBF7D0;
+      border-radius: 12px;
+      padding: 16px 18px; margin-top: 16px;
+    }
+    .sidebar-compliance-label {
+      font-size: 0.65rem; font-weight: 800; letter-spacing: 2px;
+      text-transform: uppercase; color: var(--green-700); margin-bottom: 6px;
+    }
+    .sidebar-compliance p {
+      font-size: 0.78rem; color: #166534; line-height: 1.55;
+    }
+
+    /* ========== BOTTOM CTA BANNER ========== */
+    .cta-banner {
+      background: linear-gradient(135deg, var(--slate-900) 0%, var(--blue-900) 60%, #1E40AF 100%);
+      border-radius: 20px;
+      padding: 56px 40px;
+      text-align: center;
+      margin: 0 0 48px;
+      position: relative; overflow: hidden;
+    }
+    .cta-banner::before {
+      content: '';
+      position: absolute; top: -60px; left: 50%; transform: translateX(-50%);
+      width: 500px; height: 300px;
+      background: radial-gradient(ellipse, rgba(37,99,235,0.25) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .cta-banner-tag {
+      font-size: 0.68rem; font-weight: 800; letter-spacing: 2.5px;
+      text-transform: uppercase; color: #93C5FD;
+      margin-bottom: 16px; position: relative; z-index: 1;
+    }
+    .cta-banner h2 {
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      font-weight: 900; color: #fff; letter-spacing: -0.03em;
+      margin-bottom: 12px; position: relative; z-index: 1;
+    }
+    .cta-banner p {
+      font-size: 1rem; color: rgba(255,255,255,0.65);
+      margin-bottom: 28px; max-width: 500px;
+      margin-left: auto; margin-right: auto;
+      line-height: 1.7; position: relative; z-index: 1;
+    }
+    .cta-banner .cta-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: #fff; color: var(--blue-800);
+      font-weight: 700; font-size: 1rem;
+      padding: 16px 40px; border-radius: 12px;
+      cursor: pointer; transition: all 0.2s;
+      text-decoration: none; border: none;
+      position: relative; z-index: 1;
+    }
+    .cta-banner .cta-btn:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(0,0,0,0.25); }
+    .cta-trust {
+      margin-top: 18px; font-size: 0.78rem;
+      color: rgba(255,255,255,0.35);
+      position: relative; z-index: 1;
+    }
+
+    /* ========== FAQ ========== */
+    .faq-section { padding: 48px 0; background: var(--slate-50); }
+    .faq-section-header { margin-bottom: 28px; }
+    .faq-section-header h2 {
+      font-size: 1.6rem; font-weight: 800; color: var(--slate-900);
+      letter-spacing: -0.02em; margin-bottom: 6px;
+    }
+    .faq-section-header p {
+      font-size: 0.92rem; color: var(--slate-500);
+    }
+    .faq-list { max-width: 800px; }
+    .faq-item {
+      border-bottom: 1px solid var(--slate-200);
+    }
+    .faq-question {
+      display: flex; align-items: center; justify-content: space-between;
+      width: 100%; text-align: left;
+      background: none; cursor: pointer;
+      padding: 18px 0;
+      font-size: 0.95rem; font-weight: 600; color: var(--slate-900);
+      gap: 12px;
+    }
+    .faq-question:hover { color: var(--blue-700); }
+    .faq-toggle {
+      font-size: 1.3rem; color: var(--slate-400); flex-shrink: 0; line-height: 1;
+      transition: transform 0.2s;
+    }
+    .faq-answer { display: none; padding: 0 0 18px; }
+    .faq-answer p { font-size: 0.9rem; color: var(--slate-600); line-height: 1.7; margin: 0; }
+    .faq-answer.open { display: block; }
+
+    /* ========== INTERNAL LINKS ========== */
+    .internal-links { padding: 40px 0; }
+    .internal-links h3 {
+      font-size: 1rem; font-weight: 700; color: var(--slate-900); margin-bottom: 16px;
+    }
+    .internal-links-grid {
+      display: flex; flex-wrap: wrap; gap: 10px;
+    }
+    .internal-links-grid a {
+      font-size: 0.85rem; color: var(--blue-700);
+      padding: 7px 16px; border-radius: 8px;
+      border: 1.5px solid var(--blue-100);
+      background: var(--blue-50);
+      transition: all 0.15s;
+    }
+    .internal-links-grid a:hover {
+      background: var(--blue-100); border-color: var(--blue-600); color: var(--blue-800);
+    }
+
+    /* ========== RELATED ARTICLES ========== */
+    .related-section { padding: 48px 0; }
+    .related-section h2 {
+      font-size: 1.4rem; font-weight: 800; color: var(--slate-900);
+      letter-spacing: -0.02em; margin-bottom: 20px;
+    }
+    .articles-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 20px;
+    }
+    .article-card {
+      background: #fff; border: 1.5px solid var(--slate-200);
+      border-radius: 14px; padding: 22px;
+      transition: all 0.2s; display: block;
+    }
+    .article-card:hover {
+      border-color: var(--blue-600);
+      box-shadow: 0 4px 20px rgba(37,99,235,0.1);
+      transform: translateY(-2px);
+    }
+    .article-card h3 { font-size: 0.95rem; font-weight: 700; color: var(--slate-900); margin-bottom: 8px; }
+    .article-card p  { font-size: 0.83rem; color: var(--slate-500); line-height: 1.55; margin-bottom: 12px; }
+    .read-link { font-size: 0.8rem; font-weight: 700; color: var(--blue-600); }
+
+    /* ========== FOOTER ========== */
+    .page-footer {
+      background: var(--slate-900);
+      color: rgba(255,255,255,0.55);
+      padding: 48px 0 28px;
+    }
+    .footer-grid {
+      display: flex; flex-wrap: wrap; gap: 10px 20px; margin-bottom: 24px;
+    }
+    .footer-grid a {
+      font-size: 0.83rem; color: rgba(255,255,255,0.45);
+      padding: 5px 12px;
+      background: rgba(255,255,255,0.04); border-radius: 6px;
+      transition: all 0.2s;
+    }
+    .footer-grid a:hover { color: #fff; background: rgba(255,255,255,0.08); }
+    .footer-copy {
+      font-size: 0.75rem; color: rgba(255,255,255,0.25);
+      border-top: 1px solid rgba(255,255,255,0.06);
+      padding-top: 18px;
+    }
+
+    /* ========== MOBILE STICKY CTA ========== */
+    .mobile-sticky-cta {
+      display: none;
+      position: fixed; bottom: 0; left: 0; right: 0;
+      z-index: 150; background: #fff;
+      border-top: 1px solid var(--slate-200);
+      padding: 12px 20px;
+      box-shadow: 0 -4px 24px rgba(0,0,0,0.1);
+    }
+    .mobile-sticky-cta a {
+      display: block; background: var(--blue-600); color: #fff;
+      font-weight: 700; font-size: 0.97rem;
+      text-align: center; padding: 14px; border-radius: 10px;
+      text-decoration: none;
+    }
+
+    /* ========== RESPONSIVE ========== */
+    @media (max-width: 900px) {
+      .article-layout { grid-template-columns: 1fr; gap: 0; }
+      .article-sidebar { order: -1; margin-bottom: 28px; }
+      .toc-sticky { position: static; }
+      .sidebar-cta { display: none; }
+    }
+    @media (max-width: 768px) {
+      .article-hero h1 { font-size: 1.7rem; }
+      .roi-callout { flex-direction: column; gap: 16px; }
+      .mid-cta { flex-direction: column; }
+      .styled-table thead th, .styled-table tbody td { padding: 10px 12px; font-size: 0.82rem; }
+      .cta-banner { padding: 36px 24px; }
+      .articles-grid { grid-template-columns: 1fr; }
+      .mobile-sticky-cta { display: block; }
+      body { padding-bottom: 74px; }
+    }
+
+    /* ========== ANIMATIONS ========== */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .animate-in { animation: fadeInUp 0.45s ease forwards; opacity: 0; }
+  </style>
+</head>
+
+<body>
+
+  <!-- Reading progress bar -->
+  <div class="progress-bar" id="progress-bar"></div>
+
+  <!-- Mobile sticky CTA -->
+  <div class="mobile-sticky-cta">
+    <a href="#cta-bottom">Request a Group Quote &rarr;</a>
+  </div>
+
+  <!-- ========== STICKY NAV ========== -->
+  <nav class="sticky-nav">
+    <div class="container nav-inner">
+      <div style="display:flex;align-items:center;">
+        <div class="nav-logo">ACKO<span>.</span></div>
+        <span class="nav-badge">Business</span>
+      </div>
+      <a href="#cta-bottom" class="nav-cta">Request a Group Quote &rarr;</a>
+    </div>
+  </nav>
+
+  <!-- ========== BREADCRUMB ========== -->
+  {% if breadcrumb %}
+  <div class="breadcrumb-bar">
+    <div class="container">
+      <nav aria-label="Breadcrumb">
+        {% for crumb in breadcrumb %}
+          {% if not loop.last %}
+            <a href="{{ crumb.url | default('#') }}">{{ crumb.text }}</a><span class="sep">/</span>
+          {% else %}
+            <span class="current">{{ crumb.text }}</span>
+          {% endif %}
+        {% endfor %}
+      </nav>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ========== ENTERPRISE HERO ========== -->
+  <section class="article-hero">
+    <div class="container">
+      <div class="hero-kicker">
+        <span>🏢</span>
+        <span>{{ product_label | default('Acko Business Insurance') }}</span>
+      </div>
+
+      <h1>{{ h1 | default(page_title) }}</h1>
+
+      {% if meta_description %}
+      <p class="intro">{{ meta_description }}</p>
+      {% endif %}
+
+      {% if author or reviewer %}
+      <div class="author-badges">
+        {% if author %}
+        <div class="author-badge">
+          <div class="author-avatar">{{ author.name[0] | default('A') }}</div>
+          <div>
+            <div class="badge-label">Written by</div>
+            <div class="badge-name">{{ author.name }}</div>
+            {% if author.title %}<div class="badge-title">{{ author.title }}</div>{% endif %}
+          </div>
+        </div>
+        {% endif %}
+        {% if reviewer %}
+        <div class="author-badge">
+          <div class="author-avatar" style="background:linear-gradient(135deg,#38BDF8,#0EA5E9)">{{ reviewer.name[0] | default('R') }}</div>
+          <div>
+            <div class="badge-label">Reviewed by</div>
+            <div class="badge-name">{{ reviewer.name }}</div>
+            {% if reviewer.title %}<div class="badge-title">{{ reviewer.title }}</div>{% endif %}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </section>
+
+  <!-- ========== EXECUTIVE SUMMARY / QUICK ANSWER ========== -->
+  {% if quick_answer %}
+  <div class="container">
+    <div class="exec-summary animate-in">
+      <div class="exec-summary-label">Executive Summary</div>
+      <p>{{ quick_answer | safe }}</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ========== MAIN CONTENT AREA ========== -->
+  <div class="container">
+    <div class="article-layout">
+
+      <!-- ===== ARTICLE BODY ===== -->
+      <main class="article-main">
+        <div class="article-body">
+
+          {% if body_sections %}
+            {% for section in body_sections %}
+
+              {% if section.heading %}
+              <h2 id="section-{{ loop.index }}">{{ section.heading }}</h2>
+              {% endif %}
+
+              {% if section.content %}
+              <div class="section-body">{{ section.content | safe }}</div>
+              {% endif %}
+
+              {% if section.key_takeaway %}
+              <div class="key-takeaway">
+                <div class="takeaway-label">Key Point</div>
+                <p>{{ section.key_takeaway | safe }}</p>
+              </div>
+              {% endif %}
+
+              {% if section.bullets %}
+              <div class="bullet-summary">
+                <div class="summary-label">At a Glance</div>
+                <ul>
+                  {% for bullet in section.bullets %}
+                  <li>{{ bullet | safe }}</li>
+                  {% endfor %}
+                </ul>
+              </div>
+              {% endif %}
+
+              {% if section.callout %}
+              {% if section.callout_type == 'compliance' %}
+              <div class="callout-compliance">
+                <div class="callout-compliance-icon">🛡️</div>
+                <div class="callout-compliance-body">
+                  <div class="callout-compliance-label">{{ section.callout_label | default('IRDAI Compliance') }}</div>
+                  <p>{{ section.callout | safe }}</p>
+                </div>
+              </div>
+              {% else %}
+              <div class="callout callout-{{ section.callout_type | default('info') }}">
+                <div class="callout-label">{{ section.callout_label | default('Note') }}</div>
+                <p>{{ section.callout | safe }}</p>
+              </div>
+              {% endif %}
+              {% endif %}
+
+              {# Mid-article CTA after the 3rd section #}
+              {% if loop.index == 3 %}
+              <div class="mid-cta">
+                <div class="mid-cta-text">
+                  <h3>Get a tailored group quote</h3>
+                  <p>Our enterprise team responds within 4 business hours</p>
+                </div>
+                <a href="#cta-bottom" class="mid-cta-btn">Request a Quote &rarr;</a>
+              </div>
+              {% endif %}
+
+            {% endfor %}
+          {% endif %}
+
+          {% if expert_tip %}
+          <div class="expert-callout">
+            <div class="callout-icon">💡</div>
+            <div>
+              <blockquote>&ldquo;{{ expert_tip.quote }}&rdquo;</blockquote>
+              <div class="callout-author">
+                <strong>{{ expert_tip.name }}</strong>{% if expert_tip.title %}, {{ expert_tip.title }}{% endif %}
+              </div>
+            </div>
+          </div>
+          {% endif %}
+
+        </div>
+      </main>
+
+      <!-- ===== SIDEBAR ===== -->
+      <aside class="article-sidebar">
+        <div class="toc-sticky">
+
+          {% set toc_items = [] %}
+          {% if body_sections %}
+            {% for s in body_sections %}
+              {% if s.heading %}
+                {% if toc_items.append({"idx": loop.index, "text": s.heading}) %}{% endif %}
+              {% endif %}
+            {% endfor %}
+          {% endif %}
+          {% if toc_items %}
+          <div class="toc-box">
+            <h4>In this guide</h4>
+            <ul>
+              {% for item in toc_items %}
+              <li><a href="#section-{{ item.idx }}">{{ item.text }}</a></li>
+              {% endfor %}
+            </ul>
+          </div>
+          {% endif %}
+
+          <div class="sidebar-cta">
+            <h4>Enterprise insurance?</h4>
+            <p>Get a customised group quote from our business team. Dedicated account manager included.</p>
+            <a href="#cta-bottom" class="sidebar-btn">Request a Group Quote &rarr;</a>
+          </div>
+
+          <div class="sidebar-compliance">
+            <div class="sidebar-compliance-label">🛡️ IRDAI Registered</div>
+            <p>All Acko group policies are regulated by the Insurance Regulatory and Development Authority of India (IRDAI).</p>
+          </div>
+
+        </div>
+      </aside>
+
+    </div>
+  </div>
+
+  <!-- ========== INTERNAL LINKS ========== -->
+  {% if internal_links %}
+  <section class="internal-links">
+    <div class="container">
+      <h3>Explore more business insurance topics</h3>
+      <div class="internal-links-grid">
+        {% for link in internal_links %}
+        <a href="{{ link.href }}">{{ link.text }}</a>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ========== FAQ ========== -->
+  {% if faqs %}
+  <section class="faq-section" id="faqs">
+    <div class="container">
+      <div class="faq-section-header">
+        <h2>Frequently Asked Questions</h2>
+        <p>Quick answers to common queries from HR teams and CFOs</p>
+      </div>
+      <div class="faq-list">
+        {% for faq in faqs %}
+        <div class="faq-item">
+          <button class="faq-question" onclick="toggleFaq(this)" aria-expanded="false">
+            <span>{{ faq.question }}</span>
+            <span class="faq-toggle">+</span>
+          </button>
+          <div class="faq-answer">
+            <p>{{ faq.answer | safe }}</p>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ========== RELATED ARTICLES ========== -->
+  {% if articles %}
+  <section class="related-section">
+    <div class="container">
+      <h2>Related business insurance guides</h2>
+      <div class="articles-grid">
+        {% for article in articles %}
+        <a href="{{ article.url }}" class="article-card">
+          <h3>{{ article.title }}</h3>
+          <p>{{ article.description }}</p>
+          <span class="read-link">Read more &rarr;</span>
+        </a>
+        {% endfor %}
+      </div>
+    </div>
+  </section>
+  {% endif %}
+
+  <!-- ========== BOTTOM CTA BANNER ========== -->
+  <div class="container" id="cta-bottom">
+    <div class="cta-banner">
+      <div class="cta-banner-tag">Enterprise Insurance · Acko Business</div>
+      <h2>Ready to protect your team?</h2>
+      <p>Get a fully customised group insurance quote. Our enterprise specialists will walk you through plan options, premium structure, and compliance requirements.</p>
+      <a href="https://www.acko.com/group-health-insurance/" class="cta-btn">
+        Request a Group Quote &rarr;
+      </a>
+      <div class="cta-trust">IRDAI Registered · Zero Paperwork · Dedicated Account Manager</div>
+    </div>
+  </div>
+
+  <!-- ========== FOOTER ========== -->
+  <footer class="page-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <a href="https://www.acko.com/group-health-insurance/">Group Health Insurance</a>
+        <a href="https://www.acko.com/corporate-insurance/">Corporate Insurance</a>
+        <a href="https://www.acko.com/fleet-insurance/">Fleet Insurance</a>
+        <a href="https://www.acko.com/workmen-compensation/">Workmen's Compensation</a>
+        <a href="https://www.acko.com/about-us/">About Acko</a>
+        <a href="https://www.acko.com/contact-us/">Contact Us</a>
+        <a href="https://www.acko.com/privacy-policy/">Privacy Policy</a>
+        <a href="https://www.acko.com/terms-and-conditions/">Terms</a>
+      </div>
+      <p class="footer-copy">
+        &copy; 2024 Acko Technology &amp; Services Pvt. Ltd. · CIN: U66000KA2016PTC093304 ·
+        IRDAI Registration No. 157 · All group policies are subject to IRDAI regulations.
+        Registered office: 36/5, Hustlehub One East, Somasundarapalya Rd, Bengaluru – 560 102.
+      </p>
+    </div>
+  </footer>
+
+  <!-- ========== SCRIPTS ========== -->
+  <script>
+    // FAQ accordion
+    function toggleFaq(btn) {
+      var ans = btn.nextElementSibling;
+      var open = ans.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open);
+      btn.querySelector('.faq-toggle').textContent = open ? '−' : '+';
+    }
+
+    // Reading progress bar
+    (function () {
+      var bar = document.getElementById('progress-bar');
+      if (!bar) return;
+      window.addEventListener('scroll', function () {
+        var doc = document.documentElement;
+        var scrolled = doc.scrollTop || document.body.scrollTop;
+        var total   = doc.scrollHeight - doc.clientHeight;
+        bar.style.width = total > 0 ? (scrolled / total * 100) + '%' : '0%';
+      }, { passive: true });
+    })();
+
+    // Smooth-scroll TOC links — keep navigation inside this document/iframe
+    (function () {
+      document.querySelectorAll('.toc-box a, .toc-bar a').forEach(function (a) {
+        var href = a.getAttribute('href') || '';
+        if (href.charAt(0) !== '#') return;
+        a.addEventListener('click', function (e) {
+          var target = document.querySelector(href);
+          if (!target) return;
+          e.preventDefault();
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      });
+    })();
+
+    // Animate elements as they enter viewport
+    (function () {
+      var els = document.querySelectorAll('.animate-in');
+      if (!els.length) return;
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (e) {
+          if (e.isIntersecting) { e.target.style.animationDelay = '0.05s'; io.unobserve(e.target); }
+        });
+      }, { threshold: 0.1 });
+      els.forEach(function (el) { io.observe(el); });
+    })();
+  </script>
+
+</body>
+</html>
